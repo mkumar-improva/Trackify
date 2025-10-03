@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../components/monthly_expense_view.dart';
 import '../providers/transaction_controller.dart';
@@ -66,13 +67,25 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         state.selectedAccountId ?? _allAccountsKey;
     final accountOptions = selection.accountOptions;
 
+    final bool showOnboarding = state.permissionGranted && state.needsOnboarding;
+    final bool showActions = state.permissionGranted && !showOnboarding;
     final theme = Theme.of(context);
+
+    void switchToTimeline() {
+      setState(() {
+        _currentIndex = 1;
+      });
+    }
+
     final tabs = [
       RefreshIndicator(
         onRefresh: notifier.refresh,
         child: DashboardScreen(
           overview: selection.overview,
           accounts: selection.accounts,
+          onViewTimeline: showActions ? switchToTimeline : null,
+          onManageAccounts: showActions ? _openAccountManager : null,
+          onRefresh: notifier.refresh,
         ),
       ),
       RefreshIndicator(
@@ -83,6 +96,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ),
       ),
     ];
+    final DateTime? lastUpdated = selection.overview.lastUpdated;
+    final String greeting = _greeting();
 
     Widget buildPermissionPrompt() {
       return Center(
@@ -128,7 +143,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     }
 
     Widget content;
-    final showOnboarding = state.permissionGranted && state.needsOnboarding;
 
     if (!state.permissionGranted) {
       content = buildPermissionPrompt();
@@ -148,92 +162,138 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       );
     }
 
+    final List<Widget> layeredContent = [
+      Positioned.fill(child: content),
+    ];
+
+    if (state.errorMessage != null && state.permissionGranted) {
+      layeredContent.add(
+        Positioned(
+          left: 20,
+          right: 20,
+          bottom: 24,
+          child: _ErrorBanner(
+            message: state.errorMessage!,
+            onRetry: notifier.refresh,
+          ),
+        ),
+      );
+    }
+
+    if (state.permissionGranted && state.isLoading) {
+      layeredContent.add(
+        const Positioned.fill(
+          child: IgnorePointer(
+            ignoring: true,
+            child: DecoratedBox(
+              decoration: BoxDecoration(color: Color(0x2FFFFFFF)),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(
-        title: state.permissionGranted && !showOnboarding
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Trackify'),
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isDense: true,
-                      value: selectedValue,
-                      items: accountOptions
-                          .map(
-                            (option) => DropdownMenuItem<String>(
-                              value: option.value,
-                              child: Text(option.label),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
+      extendBody: true,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF0F3DDE),
+              Color(0xFF1A73E8),
+              Color(0xFFEFF4FF),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: [0, 0.45, 1],
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _HomeHeader(
+                greeting: greeting,
+                showAccountSelector: showActions,
+                accountOptions: accountOptions,
+                selectedValue: selectedValue,
+                onAccountSelected: showActions
+                    ? (value) {
                         notifier.selectAccount(
                           value == _allAccountsKey ? null : value,
                         );
-                      },
+                      }
+                    : null,
+                onManageAccounts: showActions ? _openAccountManager : null,
+                onRefresh: showActions ? notifier.refresh : null,
+                lastUpdated: lastUpdated,
+                isSyncing: state.isLoading,
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(32),
+                      topRight: Radius.circular(32),
+                    ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                      ),
+                      child: Stack(children: layeredContent),
                     ),
                   ),
-                ],
-              )
-            : const Text('Trackify'),
-        actions: [
-          if (state.permissionGranted && !showOnboarding)
-            IconButton(
-              onPressed: _openAccountManager,
-              icon: const Icon(Icons.manage_accounts_outlined),
-              tooltip: 'Manage accounts',
-            ),
-          if (state.permissionGranted && !showOnboarding)
-            IconButton(
-              onPressed: notifier.refresh,
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Refresh transactions',
-            ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Positioned.fill(child: content),
-          if (state.errorMessage != null && state.permissionGranted)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: _ErrorBanner(
-                message: state.errorMessage!,
-                onRetry: notifier.refresh,
-              ),
-            ),
-          if (state.permissionGranted && state.isLoading)
-            const Positioned.fill(
-              child: IgnorePointer(
-                child: ColoredBox(
-                  color: Color(0x40FFFFFF),
-                  child: Center(child: CircularProgressIndicator()),
                 ),
               ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
       bottomNavigationBar: state.permissionGranted && !showOnboarding
-          ? NavigationBar(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.dashboard_outlined),
-                  selectedIcon: Icon(Icons.dashboard),
-                  label: 'Dashboard',
+          ? Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.timeline_outlined),
-                  selectedIcon: Icon(Icons.timeline),
-                  label: 'Timeline',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: NavigationBar(
+                    height: 68,
+                    backgroundColor: theme.colorScheme.surface.withOpacity(0.96),
+                    indicatorColor:
+                        theme.colorScheme.primaryContainer.withOpacity(0.7),
+                    selectedIndex: _currentIndex,
+                    onDestinationSelected: (idx) {
+                      setState(() {
+                        _currentIndex = idx;
+                      });
+                    },
+                    destinations: const [
+                      NavigationDestination(
+                        icon: Icon(Icons.dashboard_outlined),
+                        selectedIcon: Icon(Icons.dashboard),
+                        label: 'Dashboard',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.article_outlined),
+                        selectedIcon: Icon(Icons.article),
+                        label: 'Timeline',
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             )
           : null,
     );
@@ -375,4 +435,214 @@ class _ErrorBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({
+    required this.greeting,
+    required this.showAccountSelector,
+    required this.accountOptions,
+    required this.selectedValue,
+    required this.onAccountSelected,
+    required this.onManageAccounts,
+    required this.onRefresh,
+    required this.lastUpdated,
+    required this.isSyncing,
+  });
+
+  final String greeting;
+  final bool showAccountSelector;
+  final List<_AccountOption> accountOptions;
+  final String selectedValue;
+  final ValueChanged<String>? onAccountSelected;
+  final VoidCallback? onManageAccounts;
+  final VoidCallback? onRefresh;
+  final DateTime? lastUpdated;
+  final bool isSyncing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+
+    String lastUpdatedLabel() {
+      if (isSyncing) {
+        return 'Syncing your activity…';
+      }
+      if (lastUpdated == null) {
+        return 'Waiting for new insights';
+      }
+      final formatter = DateFormat('MMM d · h:mm a');
+      return 'Updated ${formatter.format(lastUpdated!)}';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.white.withOpacity(0.15),
+                child: const Icon(
+                  Icons.payments_rounded,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      greeting,
+                      style: textTheme.titleSmall?.copyWith(
+                        color: Colors.white.withOpacity(0.82),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      'Trackify Pay',
+                      style: textTheme.headlineSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (onManageAccounts != null)
+                _HeaderIconButton(
+                  icon: Icons.account_balance_wallet_outlined,
+                  tooltip: 'Manage accounts',
+                  onPressed: onManageAccounts,
+                ),
+              if (onRefresh != null)
+                _HeaderIconButton(
+                  icon: Icons.sync,
+                  tooltip: 'Refresh transactions',
+                  onPressed: onRefresh,
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (showAccountSelector) ...[
+            Text(
+              'Pay with',
+              style: textTheme.labelLarge?.copyWith(
+                color: Colors.white.withOpacity(0.8),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                color: Colors.white.withOpacity(0.14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedValue,
+                  isExpanded: true,
+                  icon: const Icon(
+                    Icons.expand_more,
+                    color: Colors.white,
+                  ),
+                  dropdownColor: theme.colorScheme.surface,
+                  style: textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  items: accountOptions
+                      .map(
+                        (option) => DropdownMenuItem<String>(
+                          value: option.value,
+                          child: Text(option.label),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: onAccountSelected,
+                ),
+              ),
+            ),
+          ] else ...[
+            Text(
+              'Set up Trackify Pay to start seeing your insights.',
+              style: textTheme.bodyMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                Icons.schedule,
+                size: 16,
+                color: Colors.white.withOpacity(0.8),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  lastUpdatedLabel(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withOpacity(0.85),
+                  ),
+                ),
+              ),
+              if (isSyncing)
+                const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.icon,
+    required this.tooltip,
+    this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: IconButton(
+        onPressed: onPressed,
+        tooltip: tooltip,
+        icon: Icon(icon, color: Colors.white),
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.white.withOpacity(0.14),
+          shape: const CircleBorder(),
+        ),
+      ),
+    );
+  }
+}
+
+String _greeting() {
+  final hour = DateTime.now().hour;
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
 }

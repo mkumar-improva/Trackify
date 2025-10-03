@@ -18,13 +18,35 @@ class TrackifyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(seedColor: Colors.teal);
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF0B57D0),
+      brightness: Brightness.light,
+    );
+
+    final textTheme = ThemeData.light().textTheme;
+
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Trackify',
       theme: ThemeData(
         colorScheme: colorScheme,
+        textTheme: textTheme,
         useMaterial3: true,
         scaffoldBackgroundColor: colorScheme.surface,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: false,
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          indicatorColor: colorScheme.primaryContainer,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          labelTextStyle: MaterialStateProperty.all(
+            textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+        ),
       ),
       home: const HomeShell(),
     );

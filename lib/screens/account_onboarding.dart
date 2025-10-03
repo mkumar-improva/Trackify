@@ -192,45 +192,84 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
     final isEditing = widget.initialConfigs.isNotEmpty;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            isEditing ? 'Manage your bank accounts' : 'Link your bank accounts',
-            style: theme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isEditing
-                ? 'Update account names or assign additional SMS senders so Trackify keeps your insights accurate.'
-                : 'Select the SMS senders that correspond to each bank account. We use this to group and analyse your transactions.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          if (widget.senders.isEmpty) ...[
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
+          Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF174EA6), Color(0xFF4285F4)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(32),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Icon(Icons.sms_failed_outlined, color: theme.colorScheme.primary),
-                    const SizedBox(width: 12),
+                    Container(
+                      height: 52,
+                      width: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.18),
+                      ),
+                      child: const Icon(Icons.account_balance, color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        'We could not find any transaction alerts yet. You can skip this step and revisit from settings later.',
-                        style: theme.textTheme.bodyMedium,
+                        isEditing ? 'Manage your bank accounts' : 'Link your bank accounts',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 16),
+                Text(
+                  isEditing
+                      ? 'Update account names or assign additional SMS senders so your insights stay accurate.'
+                      : 'Choose the SMS senders that belong to each bank account. Trackify Pay will group alerts just like Google Pay.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+                if (widget.senders.isEmpty) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.sms_failed_outlined, color: Colors.white),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'We could not find any transaction alerts yet. You can skip this step and add accounts later.',
+                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
+          ),
           const SizedBox(height: 24),
           for (var i = 0; i < _forms.length; i++)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.only(bottom: 18),
               child: _AccountCard(
                 index: i,
                 form: _forms[i],
@@ -240,7 +279,7 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
                 canRemove: _forms.length > 1,
               ),
             ),
-          OutlinedButton.icon(
+          FilledButton.tonalIcon(
             onPressed: _addAccount,
             icon: const Icon(Icons.add),
             label: const Text('Add another account'),
@@ -260,15 +299,24 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
                 ],
               )
             else
-              Row(
-                children: [
-                  Icon(Icons.check_circle_outline, color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'All senders assigned to accounts.',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ],
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: theme.colorScheme.primary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'All senders assigned to accounts.',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
               ),
           ],
           const SizedBox(height: 32),
@@ -343,98 +391,104 @@ class _AccountCardState extends State<_AccountCard> {
     final theme = Theme.of(context);
     final filteredSenders = _filteredSenders;
 
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Account ${widget.index + 1}',
-                  style: theme.textTheme.titleMedium,
-                ),
-                if (widget.canRemove)
-                  IconButton(
-                    tooltip: 'Remove account',
-                    onPressed: widget.onRemove,
-                    icon: const Icon(Icons.delete_outline),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: widget.form.nameController,
-              decoration: const InputDecoration(
-                labelText: 'Account name',
-                hintText: 'e.g. HDFC Savings',
-              ),
-              textCapitalization: TextCapitalization.words,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: widget.form.suffixController,
-              decoration: const InputDecoration(
-                labelText: 'Last 4 digits (optional)',
-                hintText: '1234',
-                counterText: '',
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(4),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Assign SMS senders',
-              style: theme.textTheme.labelLarge,
-            ),
-            const SizedBox(height: 8),
-            if (widget.allSenders.isEmpty)
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.65),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
               Text(
-                'Senders will appear here after we detect new SMS alerts.',
-                style: theme.textTheme.bodyMedium,
-              )
-            else ...[
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Search senders',
-                  prefixIcon: Icon(Icons.search),
+                'Account ${widget.index + 1}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value.trim();
-                  });
-                },
               ),
-              const SizedBox(height: 12),
-              if (filteredSenders.isEmpty)
-                Text(
-                  'No senders match your search.',
-                  style: theme.textTheme.bodyMedium,
-                )
-              else
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: filteredSenders
-                      .map(
-                        (sender) => FilterChip(
-                          label: Text(sender),
-                          selected: widget.form.selectedSenders.contains(sender),
-                          onSelected: (_) =>
-                              widget.onToggleSender(widget.index, sender),
-                        ),
-                      )
-                      .toList(),
+              if (widget.canRemove)
+                IconButton(
+                  tooltip: 'Remove account',
+                  onPressed: widget.onRemove,
+                  icon: const Icon(Icons.delete_outline),
                 ),
             ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: widget.form.nameController,
+            decoration: const InputDecoration(
+              labelText: 'Account name',
+              hintText: 'e.g. HDFC Savings',
+              filled: true,
+            ),
+            textCapitalization: TextCapitalization.words,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: widget.form.suffixController,
+            decoration: const InputDecoration(
+              labelText: 'Last 4 digits (optional)',
+              hintText: '1234',
+              counterText: '',
+              filled: true,
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(4),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Assign SMS senders',
+            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          if (widget.allSenders.isEmpty)
+            Text(
+              'Senders will appear here after we detect new SMS alerts.',
+              style: theme.textTheme.bodyMedium,
+            )
+          else ...[
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Search senders',
+                prefixIcon: Icon(Icons.search),
+                filled: true,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.trim();
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            if (filteredSenders.isEmpty)
+              Text(
+                'No senders match your search.',
+                style: theme.textTheme.bodyMedium,
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: filteredSenders
+                    .map(
+                      (sender) => FilterChip(
+                        label: Text(sender),
+                        selected: widget.form.selectedSenders.contains(sender),
+                        onSelected: (_) =>
+                            widget.onToggleSender(widget.index, sender),
+                      ),
+                    )
+                    .toList(),
+              ),
           ],
-        ),
+        ],
       ),
     );
   }
