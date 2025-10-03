@@ -30,11 +30,11 @@ class MonthlyExpenseView extends StatelessWidget {
               Icon(
                 Icons.receipt_long,
                 size: 72,
-                color: theme.colorScheme.primary,
+                color: const Color(0xFF1B4332),
               ),
               const SizedBox(height: 24),
               Text(
-                'No payments yet',
+                'No activity yet',
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -42,7 +42,7 @@ class MonthlyExpenseView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'We will build your Google Pay style timeline once we detect transaction alerts from your SMS inbox.',
+                'We will craft your Trackify timeline once we detect transaction alerts from your SMS inbox.',
                 style: theme.textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
@@ -54,7 +54,7 @@ class MonthlyExpenseView extends StatelessWidget {
 
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 140),
       itemCount: monthlySummaries.length,
       itemBuilder: (context, index) {
         final summary = monthlySummaries[index];
@@ -95,12 +95,19 @@ class _AccountTimelineCard extends StatelessWidget {
     final netColor = net >= 0 ? Colors.green.shade700 : Colors.red.shade700;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(32),
+        color: Colors.white,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x15000000),
+            blurRadius: 20,
+            offset: Offset(0, 18),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -108,10 +115,10 @@ class _AccountTimelineCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: theme.colorScheme.primary.withOpacity(0.12),
+                backgroundColor: const Color(0xFFE9F5F0),
                 child: Icon(
                   Icons.account_balance,
-                  color: theme.colorScheme.primary,
+                  color: const Color(0xFF1B4332),
                 ),
               ),
               const SizedBox(width: 12),
@@ -128,7 +135,7 @@ class _AccountTimelineCard extends StatelessWidget {
                     Text(
                       '•••• ${account.accountSuffix ?? '0000'}',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                        color: const Color(0xFF6C8374),
                       ),
                     ),
                   ],
@@ -139,7 +146,9 @@ class _AccountTimelineCard extends StatelessWidget {
                 children: [
                   Text(
                     'Net',
-                    style: theme.textTheme.labelMedium,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: const Color(0xFF6C8374),
+                    ),
                   ),
                   Text(
                     currency.format(net),
@@ -152,38 +161,30 @@ class _AccountTimelineCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              color: Colors.white.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(20),
+              color: const Color(0xFFE9F5F0),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                const Icon(Icons.arrow_downward, size: 18, color: Colors.green),
-                const SizedBox(width: 6),
-                Text(
-                  currency.format(account.creditTotal),
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: Colors.green.shade700,
-                    fontWeight: FontWeight.w600,
-                  ),
+                _FlowBadge(
+                  icon: Icons.arrow_downward_rounded,
+                  label: currency.format(account.creditTotal),
+                  color: const Color(0xFF2D6A4F),
                 ),
-                const SizedBox(width: 16),
-                const Icon(Icons.arrow_upward, size: 18, color: Colors.red),
-                const SizedBox(width: 6),
-                Text(
-                  currency.format(account.debitTotal),
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: Colors.red.shade700,
-                    fontWeight: FontWeight.w600,
-                  ),
+                const SizedBox(width: 20),
+                _FlowBadge(
+                  icon: Icons.arrow_upward_rounded,
+                  label: currency.format(account.debitTotal),
+                  color: const Color(0xFFB04E4E),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           ...account.transactions.asMap().entries.map(
             (entry) => _TimelineTransactionTile(
               transaction: entry.value,
@@ -209,7 +210,9 @@ class _TimelineTransactionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currency = NumberFormat.simpleCurrency(name: 'INR');
-    final amountColor = transaction.isCredit ? Colors.green.shade700 : Colors.red.shade700;
+    final amountColor = transaction.isCredit
+        ? const Color(0xFF2D6A4F)
+        : const Color(0xFFB04E4E);
     final signedAmount = transaction.isCredit
         ? '+${currency.format(transaction.amount)}'
         : '-${currency.format(transaction.amount)}';
@@ -298,6 +301,48 @@ class _TimelineTransactionTile extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _FlowBadge extends StatelessWidget {
+  const _FlowBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Expanded(
+      child: Row(
+        children: [
+          Container(
+            height: 36,
+            width: 36,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -199,7 +199,7 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
           Container(
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF174EA6), Color(0xFF4285F4)],
+                colors: [Color(0xFF12372A), Color(0xFF1F5C44)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -216,7 +216,7 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
                       width: 52,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.18),
+                        color: Colors.white.withOpacity(0.16),
                       ),
                       child: const Icon(Icons.account_balance, color: Colors.white, size: 28),
                     ),
@@ -236,7 +236,7 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
                 Text(
                   isEditing
                       ? 'Update account names or assign additional SMS senders so your insights stay accurate.'
-                      : 'Choose the SMS senders that belong to each bank account. Trackify Pay will group alerts just like Google Pay.',
+                      : 'Choose the SMS senders that belong to each bank account so Trackify can group insights perfectly.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.white.withOpacity(0.9),
                   ),
@@ -301,18 +301,20 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
             else
               Container(
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.08),
+                  color: const Color(0xFFE9F5F0),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle, color: theme.colorScheme.primary),
+                    const Icon(Icons.check_circle, color: Color(0xFF2D6A4F)),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'All senders assigned to accounts.',
-                        style: theme.textTheme.bodyMedium,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF2D6A4F),
+                        ),
                       ),
                     ),
                   ],
