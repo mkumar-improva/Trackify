@@ -10,11 +10,13 @@ class AccountOnboardingScreen extends StatefulWidget {
     required this.senders,
     required this.onComplete,
     this.onSkip,
+    this.initialConfigs = const <AccountConfig>[],
   });
 
   final List<String> senders;
   final Future<void> Function(List<AccountConfig>) onComplete;
   final VoidCallback? onSkip;
+  final List<AccountConfig> initialConfigs;
 
   @override
   State<AccountOnboardingScreen> createState() => _AccountOnboardingScreenState();
@@ -22,14 +24,27 @@ class AccountOnboardingScreen extends StatefulWidget {
 
 class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
   final List<_AccountFormData> _forms = [];
-  final Map<String, int> _senderOwners = {};
+  final Map<String, String> _senderOwners = {};
   int _idSeed = 0;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _forms.add(_AccountFormData(id: _generateId()));
+    if (widget.initialConfigs.isEmpty) {
+      _forms.add(_AccountFormData(id: _generateId()));
+    } else {
+      for (final config in widget.initialConfigs) {
+        final form = _AccountFormData(
+          id: config.id,
+          initialName: config.name,
+          initialSuffix: config.accountSuffix,
+          initialSenders: config.senders,
+        );
+        _forms.add(form);
+      }
+      _rebuildSenderOwners();
+    }
   }
 
   @override
@@ -41,6 +56,7 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
       for (final form in _forms) {
         form.selectedSenders.removeWhere((sender) => !currentSenders.contains(sender));
       }
+      _rebuildSenderOwners();
     }
   }
 
@@ -73,10 +89,9 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
 
     setState(() {
       final form = _forms.removeAt(index);
-      for (final sender in form.selectedSenders) {
-        _senderOwners.remove(sender);
-      }
+      _senderOwners.removeWhere((_, ownerId) => ownerId == form.id);
       form.dispose();
+      _rebuildSenderOwners();
     });
   }
 
@@ -89,15 +104,30 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
         return;
       }
 
-      final previousOwner = _senderOwners[sender];
-      if (previousOwner != null && previousOwner != accountIndex) {
-        final previousForm = _forms[previousOwner];
-        previousForm.selectedSenders.remove(sender);
+      final previousOwnerId = _senderOwners[sender];
+      if (previousOwnerId != null) {
+        final previousFormIndex =
+            _forms.indexWhere((existing) => existing.id == previousOwnerId);
+        if (previousFormIndex != -1 && previousFormIndex != accountIndex) {
+          final previousForm = _forms[previousFormIndex];
+          previousForm.selectedSenders.remove(sender);
+        }
       }
 
       form.selectedSenders.add(sender);
-      _senderOwners[sender] = accountIndex;
+      _senderOwners[sender] = form.id;
     });
+  }
+
+  void _rebuildSenderOwners() {
+    _senderOwners
+      ..clear()
+      ..addEntries(
+        _forms.asMap().entries.expand((entry) {
+          final form = entry.value;
+          return form.selectedSenders.map((sender) => MapEntry(sender, form.id));
+        }),
+      );
   }
 
   Future<void> _handleSubmit() async {
@@ -159,6 +189,7 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final unassigned = _unassignedSenders;
+    final isEditing = widget.initialConfigs.isNotEmpty;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -166,12 +197,14 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Link your bank accounts',
+            isEditing ? 'Manage your bank accounts' : 'Link your bank accounts',
             style: theme.textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
           Text(
-            'Select the SMS senders that correspond to each bank account. We use this to group and analyse your transactions.',
+            isEditing
+                ? 'Update account names or assign additional SMS senders so Trackify keeps your insights accurate.'
+                : 'Select the SMS senders that correspond to each bank account. We use this to group and analyse your transactions.',
             style: theme.textTheme.bodyMedium,
           ),
           if (widget.senders.isEmpty) ...[
@@ -251,7 +284,13 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(widget.senders.isEmpty ? 'Skip for now' : 'Save & continue'),
+                : Text(
+                    widget.senders.isEmpty
+                        ? 'Skip for now'
+                        : isEditing
+                            ? 'Save accounts'
+                            : 'Save & continue',
+                  ),
           ),
           if (widget.senders.isNotEmpty && widget.onSkip != null)
             TextButton(
@@ -402,9 +441,17 @@ class _AccountCardState extends State<_AccountCard> {
 }
 
 class _AccountFormData {
-  _AccountFormData({required this.id})
-      : nameController = TextEditingController(),
-        suffixController = TextEditingController();
+  _AccountFormData({
+    required this.id,
+    String? initialName,
+    String? initialSuffix,
+    Set<String>? initialSenders,
+  })  : nameController = TextEditingController(text: initialName ?? ''),
+        suffixController = TextEditingController(text: initialSuffix ?? '') {
+    if (initialSenders != null) {
+      selectedSenders.addAll(initialSenders);
+    }
+  }
 
   final String id;
   final TextEditingController nameController;

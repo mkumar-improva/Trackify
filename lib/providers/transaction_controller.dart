@@ -46,6 +46,7 @@ class TransactionState {
     required this.needsOnboarding,
     required this.availableSenders,
     required this.accountConfigs,
+    required this.selectedAccountId,
   });
 
   factory TransactionState.initial() => TransactionState(
@@ -66,6 +67,7 @@ class TransactionState {
         needsOnboarding: false,
         availableSenders: const [],
         accountConfigs: const [],
+        selectedAccountId: null,
       );
 
   final bool permissionGranted;
@@ -79,6 +81,7 @@ class TransactionState {
   final bool needsOnboarding;
   final List<String> availableSenders;
   final List<AccountConfig> accountConfigs;
+  final String? selectedAccountId;
 
   TransactionState copyWith({
     bool? permissionGranted,
@@ -92,6 +95,7 @@ class TransactionState {
     bool? needsOnboarding,
     List<String>? availableSenders,
     List<AccountConfig>? accountConfigs,
+    Object? selectedAccountId = _sentinel,
   }) {
     return TransactionState(
       permissionGranted: permissionGranted ?? this.permissionGranted,
@@ -108,6 +112,9 @@ class TransactionState {
       needsOnboarding: needsOnboarding ?? this.needsOnboarding,
       availableSenders: availableSenders ?? this.availableSenders,
       accountConfigs: accountConfigs ?? this.accountConfigs,
+      selectedAccountId: selectedAccountId == _sentinel
+          ? this.selectedAccountId
+          : selectedAccountId as String?,
     );
   }
 
@@ -162,6 +169,10 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
       );
       final overview =
           _aggregator.buildDashboardOverview(state.transactions, accounts);
+      final selectedAccountId = _validateSelection(
+        state.selectedAccountId,
+        accounts,
+      );
 
       state = state.copyWith(
         isLoading: false,
@@ -171,6 +182,7 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
         accountSummaries: accounts,
         overview: overview,
         errorMessage: null,
+        selectedAccountId: selectedAccountId,
       );
     } catch (err, stack) {
       debugPrint('Failed to save account configs: $err\n$stack');
@@ -184,6 +196,10 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
 
   void skipOnboarding() {
     state = state.copyWith(needsOnboarding: false);
+  }
+
+  void selectAccount(String? accountId) {
+    state = state.copyWith(selectedAccountId: accountId);
   }
 
   Future<void> _handlePermissionFlow() async {
@@ -233,6 +249,8 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
       final accounts =
           _aggregator.buildAccountSummaries(messages, accountConfigs: configs);
       final overview = _aggregator.buildDashboardOverview(messages, accounts);
+      final selectedAccountId =
+          _validateSelection(state.selectedAccountId, accounts);
 
       state = state.copyWith(
         isLoading: false,
@@ -244,6 +262,7 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
         accountConfigs: configs,
         availableSenders: senders,
         needsOnboarding: senders.isNotEmpty && configs.isEmpty,
+        selectedAccountId: selectedAccountId,
       );
     } catch (err, stack) {
       debugPrint('Failed to load SMS messages: $err\n$stack');
@@ -252,5 +271,18 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
         errorMessage: 'Failed to load SMS messages. Please try again.',
       );
     }
+  }
+
+  String? _validateSelection(
+    String? selectedAccountId,
+    List<AccountSummary> accounts,
+  ) {
+    if (selectedAccountId == null) {
+      return null;
+    }
+
+    final exists =
+        accounts.any((account) => account.accountKey == selectedAccountId);
+    return exists ? selectedAccountId : null;
   }
 }
