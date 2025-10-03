@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "155451211933",
+    "project_id": "trackify-9e007",
+    "storage_bucket": "trackify-9e007.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:155451211933:android:bb98b1034e24e2d34b9474",
+        "android_client_info": {
+          "package_name": "io.improva.trackify.trackify"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDusLjU34RNlNZXTH7qx0EMJsWWhzFj2wc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
