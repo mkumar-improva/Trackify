@@ -3,6 +3,7 @@ import 'package:trackify/services/sms_service.dart';
 import 'package:trackify/types/monthly_summary.dart';
 import 'package:trackify/types/transaction.dart';
 import 'package:trackify/components/monthly_expense_view.dart';
+import 'package:trackify/screens/spending_overview.dart';
 
 
 class MyApp extends StatefulWidget {
@@ -74,7 +75,26 @@ class _MyAppState extends State<MyApp> {
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: Scaffold(
-        appBar: AppBar(title: const Text('Expense Tracker')),
+        appBar: AppBar(
+          title: const Text('Expense Tracker'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.pie_chart),
+              tooltip: 'Spending Overview',
+              onPressed: _transactions.isEmpty
+                  ? null
+                  : () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SpendingOverviewScreen(
+                            transactions: _transactions,
+                          ),
+                        ),
+                      );
+                    },
+            ),
+          ],
+        ),
         body: RefreshIndicator(
           onRefresh: _querySmsMessages,
           child: _loading
