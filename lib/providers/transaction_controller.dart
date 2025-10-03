@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/account_config_service.dart';
 import '../services/sms_service.dart';
 import '../services/transaction_aggregator.dart';
+import '../types/account_config.dart';
 import '../types/account_summary.dart';
 import '../types/dashboard_overview.dart';
 import '../types/transaction.dart';
@@ -15,11 +17,20 @@ final transactionAggregatorProvider = Provider<TransactionAggregator>((ref) {
   return TransactionAggregator();
 });
 
+final accountConfigServiceProvider = Provider<AccountConfigService>((ref) {
+  return AccountConfigService();
+});
+
 final transactionControllerProvider =
     StateNotifierProvider<TransactionNotifier, TransactionState>((ref) {
   final smsService = ref.watch(smsServiceProvider);
   final aggregator = ref.watch(transactionAggregatorProvider);
-  return TransactionNotifier(smsService: smsService, aggregator: aggregator);
+  final accountConfigService = ref.watch(accountConfigServiceProvider);
+  return TransactionNotifier(
+    smsService: smsService,
+    aggregator: aggregator,
+    accountConfigService: accountConfigService,
+  );
 });
 
 class TransactionState {
@@ -32,6 +43,9 @@ class TransactionState {
     required this.accountSummaries,
     required this.overview,
     required this.errorMessage,
+    required this.needsOnboarding,
+    required this.availableSenders,
+    required this.accountConfigs,
   });
 
   factory TransactionState.initial() => TransactionState(
@@ -49,6 +63,9 @@ class TransactionState {
           lastUpdated: null,
         ),
         errorMessage: null,
+        needsOnboarding: false,
+        availableSenders: const [],
+        accountConfigs: const [],
       );
 
   final bool permissionGranted;
@@ -59,6 +76,9 @@ class TransactionState {
   final List<AccountSummary> accountSummaries;
   final DashboardOverview overview;
   final String? errorMessage;
+  final bool needsOnboarding;
+  final List<String> availableSenders;
+  final List<AccountConfig> accountConfigs;
 
   TransactionState copyWith({
     bool? permissionGranted,
@@ -69,6 +89,9 @@ class TransactionState {
     List<AccountSummary>? accountSummaries,
     DashboardOverview? overview,
     Object? errorMessage = _sentinel,
+    bool? needsOnboarding,
+    List<String>? availableSenders,
+    List<AccountConfig>? accountConfigs,
   }) {
     return TransactionState(
       permissionGranted: permissionGranted ?? this.permissionGranted,
@@ -82,6 +105,9 @@ class TransactionState {
       errorMessage: errorMessage == _sentinel
           ? this.errorMessage
           : errorMessage as String?,
+      needsOnboarding: needsOnboarding ?? this.needsOnboarding,
+      availableSenders: availableSenders ?? this.availableSenders,
+      accountConfigs: accountConfigs ?? this.accountConfigs,
     );
   }
 
@@ -92,12 +118,15 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
   TransactionNotifier({
     required SmsService smsService,
     required TransactionAggregator aggregator,
+    required AccountConfigService accountConfigService,
   })  : _smsService = smsService,
         _aggregator = aggregator,
+        _configService = accountConfigService,
         super(TransactionState.initial());
 
   final SmsService _smsService;
   final TransactionAggregator _aggregator;
+  final AccountConfigService _configService;
 
   Future<void> initialize() async {
     await _handlePermissionFlow();
@@ -117,6 +146,44 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
 
   Future<void> openSettings() async {
     await _smsService.openSettings();
+  }
+
+  Future<void> completeOnboarding(List<AccountConfig> configs) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _configService.saveConfigs(configs);
+      final monthly = _aggregator.buildMonthlySummaries(
+        state.transactions,
+        accountConfigs: configs,
+      );
+      final accounts = _aggregator.buildAccountSummaries(
+        state.transactions,
+        accountConfigs: configs,
+      );
+      final overview =
+          _aggregator.buildDashboardOverview(state.transactions, accounts);
+
+      state = state.copyWith(
+        isLoading: false,
+        needsOnboarding: false,
+        accountConfigs: configs,
+        monthlySummaries: monthly,
+        accountSummaries: accounts,
+        overview: overview,
+        errorMessage: null,
+      );
+    } catch (err, stack) {
+      debugPrint('Failed to save account configs: $err\n$stack');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage:
+            'Failed to save account configuration. Please try again.',
+      );
+    }
+  }
+
+  void skipOnboarding() {
+    state = state.copyWith(needsOnboarding: false);
   }
 
   Future<void> _handlePermissionFlow() async {
@@ -154,8 +221,17 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
   Future<void> _loadTransactions() async {
     try {
       final messages = await _smsService.queryAndParseSms();
-      final monthly = _aggregator.buildMonthlySummaries(messages);
-      final accounts = _aggregator.buildAccountSummaries(messages);
+      final configs = await _configService.loadConfigs();
+      final senders = messages
+          .map((m) => m.sender)
+          .where((sender) => sender.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+      final monthly =
+          _aggregator.buildMonthlySummaries(messages, accountConfigs: configs);
+      final accounts =
+          _aggregator.buildAccountSummaries(messages, accountConfigs: configs);
       final overview = _aggregator.buildDashboardOverview(messages, accounts);
 
       state = state.copyWith(
@@ -165,6 +241,9 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
         accountSummaries: accounts,
         overview: overview,
         errorMessage: null,
+        accountConfigs: configs,
+        availableSenders: senders,
+        needsOnboarding: senders.isNotEmpty && configs.isEmpty,
       );
     } catch (err, stack) {
       debugPrint('Failed to load SMS messages: $err\n$stack');

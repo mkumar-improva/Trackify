@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../components/monthly_expense_view.dart';
 import '../providers/transaction_controller.dart';
+import 'account_onboarding.dart';
 import 'dashboard.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
@@ -91,8 +92,16 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     }
 
     Widget content;
+    final showOnboarding = state.permissionGranted && state.needsOnboarding;
+
     if (!state.permissionGranted) {
       content = buildPermissionPrompt();
+    } else if (showOnboarding) {
+      content = AccountOnboardingScreen(
+        senders: state.availableSenders,
+        onComplete: notifier.completeOnboarding,
+        onSkip: () => notifier.skipOnboarding(),
+      );
     } else if (state.transactions.isEmpty && state.isLoading) {
       content = const Center(child: CircularProgressIndicator());
     } else {
@@ -106,11 +115,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       appBar: AppBar(
         title: const Text('Trackify'),
         actions: [
-          IconButton(
-            onPressed: notifier.refresh,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh transactions',
-          ),
+          if (!showOnboarding)
+            IconButton(
+              onPressed: notifier.refresh,
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh transactions',
+            ),
         ],
       ),
       body: Stack(
@@ -137,7 +147,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             ),
         ],
       ),
-      bottomNavigationBar: state.permissionGranted
+      bottomNavigationBar: state.permissionGranted && !showOnboarding
           ? NavigationBar(
               selectedIndex: _currentIndex,
               onDestinationSelected: (idx) => setState(() => _currentIndex = idx),

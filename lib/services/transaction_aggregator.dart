@@ -2,33 +2,38 @@ import 'dart:math';
 
 import 'package:intl/intl.dart';
 
+import '../types/account_config.dart';
 import '../types/account_summary.dart';
 import '../types/dashboard_overview.dart';
 import '../types/transaction.dart';
 
 class TransactionAggregator {
-  List<MonthlySummary> buildMonthlySummaries(List<Transaction> transactions) {
-    final Map<String, Map<String, List<Transaction>>> grouped = {};
+  List<MonthlySummary> buildMonthlySummaries(
+    List<Transaction> transactions, {
+    List<AccountConfig> accountConfigs = const [],
+  }) {
+    final senderLookup = _buildSenderLookup(accountConfigs);
+    final Map<String, Map<String, _AccountGrouping>> grouped = {};
     for (final transaction in transactions) {
       final monthKey = transaction.monthKey();
-      final accountKey = transaction.accountKey;
+      final meta = _metaFor(transaction, senderLookup);
       grouped.putIfAbsent(monthKey, () => {});
-      grouped[monthKey]!.putIfAbsent(accountKey, () => []);
-      grouped[monthKey]![accountKey]!.add(transaction);
+      grouped[monthKey]!.putIfAbsent(meta.key, () => _AccountGrouping(meta));
+      grouped[monthKey]![meta.key]!.transactions.add(transaction);
     }
 
     final List<MonthlySummary> summaries = [];
     final sortedMonths = grouped.keys.toList()
       ..sort((a, b) => b.compareTo(a));
     for (final month in sortedMonths) {
-      final accounts = grouped[month]!.entries.map((entry) {
-        final transactions = entry.value..sort((a, b) => b.date.compareTo(a.date));
-        final sample = transactions.first;
+      final accounts = grouped[month]!.values.map((group) {
+        final transactions = group.transactions
+          ..sort((a, b) => b.date.compareTo(a.date));
         return AccountMonthlySummary(
           monthKey: month,
           transactions: List.unmodifiable(transactions),
-          accountSuffix: sample.accountSuffix,
-          institution: sample.institution,
+          accountSuffix: group.meta.accountSuffix,
+          institution: group.meta.institution,
         );
       }).toList()
         ..sort(
@@ -41,17 +46,22 @@ class TransactionAggregator {
     return summaries;
   }
 
-  List<AccountSummary> buildAccountSummaries(List<Transaction> transactions) {
-    final Map<String, List<Transaction>> grouped = {};
+  List<AccountSummary> buildAccountSummaries(
+    List<Transaction> transactions, {
+    List<AccountConfig> accountConfigs = const [],
+  }) {
+    final senderLookup = _buildSenderLookup(accountConfigs);
+    final Map<String, _AccountGrouping> grouped = {};
     for (final transaction in transactions) {
-      grouped.putIfAbsent(transaction.accountKey, () => []);
-      grouped[transaction.accountKey]!.add(transaction);
+      final meta = _metaFor(transaction, senderLookup);
+      grouped.putIfAbsent(meta.key, () => _AccountGrouping(meta));
+      grouped[meta.key]!.transactions.add(transaction);
     }
 
     final List<AccountSummary> summaries = [];
-    for (final entry in grouped.entries) {
-      final transactions = entry.value..sort((a, b) => b.date.compareTo(a.date));
-      final sample = transactions.first;
+    for (final group in grouped.values) {
+      final transactions = group.transactions
+        ..sort((a, b) => b.date.compareTo(a.date));
       final monthlyGroups = <String, List<Transaction>>{};
       for (final t in transactions) {
         monthlyGroups.putIfAbsent(t.monthKey(), () => []);
@@ -62,17 +72,17 @@ class TransactionAggregator {
         return AccountMonthlySummary(
           monthKey: monthly.key,
           transactions: List.unmodifiable(items),
-          accountSuffix: sample.accountSuffix,
-          institution: sample.institution,
+          accountSuffix: group.meta.accountSuffix,
+          institution: group.meta.institution,
         );
       }).toList()
         ..sort((a, b) => b.monthKey.compareTo(a.monthKey));
 
       summaries.add(
         AccountSummary(
-          accountKey: entry.key,
-          institution: sample.institution,
-          accountSuffix: sample.accountSuffix,
+          accountKey: group.meta.key,
+          institution: group.meta.institution,
+          accountSuffix: group.meta.accountSuffix,
           monthlyBreakdowns: monthlySummaries,
         ),
       );
@@ -123,4 +133,56 @@ class TransactionAggregator {
       return monthKey;
     }
   }
+
+  Map<String, AccountConfig> _buildSenderLookup(
+    List<AccountConfig> accountConfigs,
+  ) {
+    final Map<String, AccountConfig> lookup = {};
+    for (final config in accountConfigs) {
+      for (final sender in config.senders) {
+        if (sender.isEmpty) continue;
+        lookup[sender] = config;
+      }
+    }
+    return lookup;
+  }
+
+  _AccountMeta _metaFor(
+    Transaction transaction,
+    Map<String, AccountConfig> senderLookup,
+  ) {
+    final config = senderLookup[transaction.sender];
+    if (config != null) {
+      return _AccountMeta(
+        key: config.id,
+        institution: config.name,
+        accountSuffix: config.accountSuffix,
+      );
+    }
+
+    return _AccountMeta(
+      key: transaction.accountKey,
+      institution: transaction.institution,
+      accountSuffix: transaction.accountSuffix,
+    );
+  }
+}
+
+class _AccountGrouping {
+  _AccountGrouping(this.meta);
+
+  final _AccountMeta meta;
+  final List<Transaction> transactions = [];
+}
+
+class _AccountMeta {
+  const _AccountMeta({
+    required this.key,
+    required this.institution,
+    required this.accountSuffix,
+  });
+
+  final String key;
+  final String institution;
+  final String? accountSuffix;
 }
