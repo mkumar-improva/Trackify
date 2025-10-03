@@ -1,21 +1,16 @@
-import 'package:trackify/types/transaction.dart';
+import 'transaction.dart';
 
 class MonthlySummary {
-  final String month;
+  final String month; // yyyy-MM
   final List<Transaction> transactions;
-  double _totalDebit = 0;
-  double _totalCredit = 0;
 
-  MonthlySummary({required this.month, required this.transactions}) {
-    for (final t in transactions) {
-      if (t.type == 'DEBIT' && t.amount != null) {
-        _totalDebit += t.amount!;
-      } else if (t.type == 'CREDIT' && t.amount != null) {
-        _totalCredit += t.amount!;
-      }
-    }
-  }
+  MonthlySummary({required this.month, required this.transactions});
 
-  double get totalDebit => _totalDebit;
-  double get totalCredit => _totalCredit;
+  double totalDebit() => transactions
+      .where((t) => t.type == 'DEBIT' && (t.amount ?? 0) > 0)
+      .fold(0.0, (s, t) => s + (t.amount ?? 0));
+
+  double totalCredit() => transactions
+      .where((t) => t.type == 'CREDIT' && (t.amount ?? 0) > 0)
+      .fold(0.0, (s, t) => s + (t.amount ?? 0));
 }
