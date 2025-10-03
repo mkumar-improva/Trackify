@@ -264,7 +264,7 @@ class _AccountOnboardingScreenState extends State<AccountOnboardingScreen> {
   }
 }
 
-class _AccountCard extends StatelessWidget {
+class _AccountCard extends StatefulWidget {
   const _AccountCard({
     required this.index,
     required this.form,
@@ -282,8 +282,27 @@ class _AccountCard extends StatelessWidget {
   final bool canRemove;
 
   @override
+  State<_AccountCard> createState() => _AccountCardState();
+}
+
+class _AccountCardState extends State<_AccountCard> {
+  String _searchQuery = '';
+
+  List<String> get _filteredSenders {
+    if (_searchQuery.isEmpty) {
+      return widget.allSenders;
+    }
+
+    final query = _searchQuery.toLowerCase();
+    return widget.allSenders
+        .where((sender) => sender.toLowerCase().contains(query))
+        .toList(growable: false);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final filteredSenders = _filteredSenders;
 
     return Card(
       elevation: 0,
@@ -296,20 +315,20 @@ class _AccountCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Account ${index + 1}',
+                  'Account ${widget.index + 1}',
                   style: theme.textTheme.titleMedium,
                 ),
-                if (canRemove)
+                if (widget.canRemove)
                   IconButton(
                     tooltip: 'Remove account',
-                    onPressed: onRemove,
+                    onPressed: widget.onRemove,
                     icon: const Icon(Icons.delete_outline),
                   ),
               ],
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: form.nameController,
+              controller: widget.form.nameController,
               decoration: const InputDecoration(
                 labelText: 'Account name',
                 hintText: 'e.g. HDFC Savings',
@@ -318,7 +337,7 @@ class _AccountCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: form.suffixController,
+              controller: widget.form.suffixController,
               decoration: const InputDecoration(
                 labelText: 'Last 4 digits (optional)',
                 hintText: '1234',
@@ -336,25 +355,45 @@ class _AccountCard extends StatelessWidget {
               style: theme.textTheme.labelLarge,
             ),
             const SizedBox(height: 8),
-            if (allSenders.isEmpty)
+            if (widget.allSenders.isEmpty)
               Text(
                 'Senders will appear here after we detect new SMS alerts.',
                 style: theme.textTheme.bodyMedium,
               )
-            else
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: allSenders
-                    .map(
-                      (sender) => FilterChip(
-                        label: Text(sender),
-                        selected: form.selectedSenders.contains(sender),
-                        onSelected: (_) => onToggleSender(index, sender),
-                      ),
-                    )
-                    .toList(),
+            else ...[
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Search senders',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.trim();
+                  });
+                },
               ),
+              const SizedBox(height: 12),
+              if (filteredSenders.isEmpty)
+                Text(
+                  'No senders match your search.',
+                  style: theme.textTheme.bodyMedium,
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: filteredSenders
+                      .map(
+                        (sender) => FilterChip(
+                          label: Text(sender),
+                          selected: widget.form.selectedSenders.contains(sender),
+                          onSelected: (_) =>
+                              widget.onToggleSender(widget.index, sender),
+                        ),
+                      )
+                      .toList(),
+                ),
+            ],
           ],
         ),
       ),
