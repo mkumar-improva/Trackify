@@ -43,6 +43,12 @@ dependencies:
   flutter_overboard:
   google_fonts: ^6.3.2
   shared_preferences:
+  sqflite:
+  path_provider:
+  speech_to_text:
+  flutter_tts:
+  firebase_ai:
+  dotenv:
 
 
 dev_dependencies:

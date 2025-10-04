@@ -5,6 +5,8 @@ class LabeledTextField extends StatelessWidget {
   final String? hintText;
   final TextEditingController controller;
   final TextInputType? keyboardType;
+  final String? Function(String?)? validator; // ✅ Added validator support
+  final bool? obscureText; // optional for password reuse
 
   const LabeledTextField({
     super.key,
@@ -12,6 +14,8 @@ class LabeledTextField extends StatelessWidget {
     required this.controller,
     this.hintText,
     this.keyboardType,
+    this.validator,
+    this.obscureText,
   });
 
   @override
@@ -19,16 +23,24 @@ class LabeledTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600)),
-        // const SizedBox(height: 10),
-        TextField(
+        Text(
+          label,
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
           controller: controller,
           keyboardType: keyboardType,
-          decoration: InputDecoration(hintText: hintText),
+          obscureText: obscureText ?? false,
+          validator: validator, // ✅ Validation linked here
+          decoration: InputDecoration(
+            hintText: hintText,
+            border: const OutlineInputBorder(),
+            errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 13),
+          ),
         ),
       ],
     );

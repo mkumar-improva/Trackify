@@ -27,6 +27,8 @@ class _TrackifyAppState extends State<TrackifyApp> {
     return prefs.getBool('seen_onboarding') ?? false;
   }
 
+
+
   Future<void> _setSeen() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('seen_onboarding', true);
@@ -52,7 +54,6 @@ class _TrackifyAppState extends State<TrackifyApp> {
           if (snap.data == true) {
             return const LoginPage();
           }
-          // Not seen → show onboarding
           return Builder(
             builder: (ctx) => OnboardingScreen(
               onSkip: () async {
