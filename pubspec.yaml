@@ -40,6 +40,9 @@ dependencies:
   firebase_core:
   firebase_auth: ^6.1.0
   google_sign_in: ^6.3.0
+  flutter_overboard:
+  google_fonts: ^6.3.2
+  shared_preferences:
 
 
 dev_dependencies:
@@ -65,9 +68,19 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/images/3d/cash.png
+    - assets/images/3d/credit_card.png
+    - assets/images/3d/wallet_with_cash.png
+    - assets/images/bank.png
+    - assets/images/cards_onboard.png
+    - assets/images/money_growth.png
+    - assets/images/onboarding1.png
+    - assets/images/onboarding2.png
+    - assets/images/onboarding3.png
+    - assets/images/piggy_bank.png
+    - assets/images/3d/analytics.png
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
