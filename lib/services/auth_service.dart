@@ -7,7 +7,7 @@ class FirebaseServices {
   FirebaseServices({
     GoogleSignIn? googleSignIn,
     FirebaseAuth? auth,
-  })  : _googleSignIn = googleSignIn ?? GoogleSignIn(),
+  })  : _googleSignIn = GoogleSignIn(),
         _auth = auth ?? FirebaseAuth.instance;
 
   final GoogleSignIn _googleSignIn;
@@ -28,15 +28,6 @@ class FirebaseServices {
       final GoogleSignInAuthentication tokens = await account.authentication;
 
       // This is the #1 cause of "null credential" on Android
-      if (tokens.idToken == null) {
-        debugPrint(
-          '[Auth] idToken is NULL. '
-              'Likely missing SHA-1/SHA-256 in Firebase → Android app or wrong google-services.json. '
-              'Add SHA keys via `./gradlew signingReport`, update them in Firebase console, '
-              're-download google-services.json, then flutter clean & rebuild.',
-        );
-        return null;
-      }
 
       final credential = GoogleAuthProvider.credential(
         accessToken: tokens.accessToken,
