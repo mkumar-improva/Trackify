@@ -195,7 +195,7 @@ class _AccountSummaryState extends State<AccountSummary> {
           else
           // Build the list based on the transactions
             SizedBox(
-              height: 600,
+              height: 500,
               child: SingleChildScrollView(
                 child: ListView.separated(
                   shrinkWrap: true,

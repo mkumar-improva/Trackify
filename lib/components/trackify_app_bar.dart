@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:trackify/screens/login_page_v2.dart';
 
 class TrackifyAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String titleText;
   const TrackifyAppBar({super.key, required this.titleText});
+  
+  void _onLogoutPressed(BuildContext context) async {
+    // Implement logout functionality here
+    final pref = await SharedPreferences.getInstance();
+    pref.setBool("isLoggedIn", false);
+    // Navigate to login screen or perform other actions
+    Navigator.pushReplacement(
+      context,
+    MaterialPageRoute(builder: (context) => LoginPage()),);
+  }
 
 
 
@@ -18,7 +30,7 @@ class TrackifyAppBar extends StatelessWidget implements PreferredSizeWidget {
         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
       ),
       actions: [
-        IconButton(onPressed: (){}, icon: Icon(Icons.logout, size: 20,), tooltip: 'Logout',)
+        IconButton(onPressed: (){_onLogoutPressed(context);}, icon: Icon(Icons.logout, size: 20,), tooltip: 'Logout',)
       ],
     );
   }
