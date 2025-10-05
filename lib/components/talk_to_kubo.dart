@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:trackify/components/chat/chat_bubble.dart';
 import 'package:trackify/components/chat/chat_input_bar.dart';
 import 'package:trackify/components/chat/typing_indicator.dart';
-import '../controllers/chat_controller.dart';
-import '../services/chat_service.dart';
+import 'package:trackify/controllers/chat_controller.dart';
+import 'package:trackify/services/chat_service.dart';
 
 class TalkToKuboPage extends StatefulWidget {
   const TalkToKuboPage({super.key});

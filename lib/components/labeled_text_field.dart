@@ -23,13 +23,6 @@ class LabeledTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(context)
-              .textTheme
-              .titleMedium
-              ?.copyWith(fontWeight: FontWeight.w600),
-        ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -38,11 +31,17 @@ class LabeledTextField extends StatelessWidget {
           validator: validator, // ✅ Validation linked here
           decoration: InputDecoration(
             hintText: hintText,
-            border: const OutlineInputBorder(),
+            labelText: label,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
             errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 13),
           ),
+          textCapitalization: TextCapitalization.words,
         ),
       ],
     );
   }
 }
+
+

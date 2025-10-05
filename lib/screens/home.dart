@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:trackify/components/empty_state.dart';
 import 'package:trackify/components/refresh_fab.dart';
+import 'package:trackify/components/settings.dart';
 import 'package:trackify/components/talk_to_kubo.dart';
 import 'package:trackify/components/trackify_app_bar.dart';
 import 'package:trackify/services/sms_service.dart';
@@ -96,8 +97,10 @@ class _HomeState extends State<Home> with BackExitHelper {
   Widget _getCurrentPage() {
     if (_selectedIndex == 0) {
       return _buildTransactionsView();
-    } else {
+    } else if (_selectedIndex == 1) {
       return const TalkToKuboPage();
+    } else {
+      return const Settings();
     }
   }
 
@@ -107,7 +110,7 @@ class _HomeState extends State<Home> with BackExitHelper {
       onWillPop: () => handleBackPress(context),
       child: Scaffold(
         appBar: TrackifyAppBar(
-          titleText: _selectedIndex == 0 ? 'Trackify' : 'Talk to Kubo',
+          titleText: 'Trackify',
         ),
         body: _getCurrentPage(),
         floatingActionButton: _selectedIndex == 0
@@ -131,6 +134,11 @@ class _HomeState extends State<Home> with BackExitHelper {
               icon: Icon(Icons.smart_toy_outlined),
               activeIcon: Icon(Icons.smart_toy),
               label: 'Talk to Kubo',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings_applications_outlined),
+              activeIcon: Icon(Icons.settings_applications),
+              label: 'Settings',
             ),
           ],
         ),

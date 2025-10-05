@@ -26,12 +26,6 @@ class _PasswordFieldState extends State<PasswordField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          widget.label,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
         const SizedBox(height: 6),
         TextFormField(
           controller: widget.controller,
@@ -39,7 +33,10 @@ class _PasswordFieldState extends State<PasswordField> {
           validator: widget.validator, // ✅ Validation support
           decoration: InputDecoration(
             hintText: widget.hintText,
-            border: const OutlineInputBorder(),
+            labelText: widget.label,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
             suffixIcon: IconButton(
               onPressed: () => setState(() => _obscure = !_obscure),
               icon: Icon(

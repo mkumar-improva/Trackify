@@ -27,9 +27,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   Future<void> _handleSend() async {
     final text = _controller.text.trim();
+    _controller.clear();
     if (text.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
+      _controller.clear();
       await widget.onSend(text);
       _controller.clear();
     } finally {

@@ -77,7 +77,9 @@ class ChatController extends ChangeNotifier {
 
       if (speakReply && buffer.isNotEmpty) {
         await _tts.stop();
-        await _tts.setSpeechRate(0.95);
+        await _tts.setSpeechRate(0.5);
+        await _tts.setVolume(1.0);
+        await _tts.setPitch(1.0);
         await _tts.speak(buffer.toString());
       }
     } catch (e) {

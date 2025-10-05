@@ -49,6 +49,7 @@ dependencies:
   flutter_tts:
   firebase_ai:
   dotenv:
+  u_credit_card: ^1.4.0
 
 
 dev_dependencies:
