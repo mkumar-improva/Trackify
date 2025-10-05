@@ -45,6 +45,7 @@ Map<String, Object?> paymentToMap(PaymentMethod m) {
     'variant': m.variant,
     'card_type': m.cardType,
     'card_network': m.cardNetwork,
+    'senders': m.senders, // if you have this field
     // created_at is defaulted by DB
   };
 }
@@ -71,6 +72,7 @@ PaymentMethod paymentFromMap(Map<String, Object?> row) {
     variant: asInt(row['variant']),
     cardType: asString(row['card_type']),
     cardNetwork: asString(row['card_network']),
+    senders: asString(row['senders']),
   );
 }
 

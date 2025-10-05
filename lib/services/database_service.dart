@@ -8,8 +8,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const _dbName = 'trackify.db';
-  // ⬇️ Bump to 2 to add payment_methods table
-  static const _dbVersion = 2;
+  static const _dbVersion = 3;
 
   Database? _db;
 
@@ -45,9 +44,7 @@ class AppDatabase {
 
         await db.execute('CREATE INDEX idx_tx_date ON transactions(date);');
         await db.execute('CREATE INDEX idx_tx_type ON transactions(type);');
-        await db.execute(
-          'CREATE INDEX idx_tx_account ON transactions(account);',
-        );
+        await db.execute('CREATE INDEX idx_tx_account ON transactions(account);');
 
         // -------- payment_methods (new) --------
         await _createPaymentMethods(db);
@@ -57,7 +54,11 @@ class AppDatabase {
         if (oldV < 2) {
           await _createPaymentMethods(db);
         }
-        // Put future migrations behind version checks.
+
+        // v2 -> v3: add senders column
+        if (oldV < 3) {
+          await db.execute('ALTER TABLE payment_methods ADD COLUMN senders TEXT;');
+        }
       },
     );
   }
@@ -65,24 +66,26 @@ class AppDatabase {
   Future<void> _createPaymentMethods(Database db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS payment_methods (
-        id TEXT PRIMARY KEY,                     -- keep your existing string id
+        id TEXT PRIMARY KEY,
         type TEXT NOT NULL CHECK(type IN ('card','bank')),
-        label TEXT NOT NULL,                     -- display name (e.g., "HDFC **** 1234")
-        brand TEXT,                              -- Visa/Master/HDFC/etc (optional)
-        last4 TEXT,                              -- last 4 digits (optional)
-        expiry_month INTEGER,                    -- nullable for bank accounts
+        label TEXT NOT NULL,
+        brand TEXT,
+        last4 TEXT,
+        expiry_month INTEGER,
         expiry_year INTEGER,
-        holder TEXT,                             -- card holder or account holder
-        bank_name TEXT,                          -- for bank accounts (optional)
-        account_mask TEXT,                       -- masked acct (e.g., XX1234)
-        ifsc TEXT,                               -- optional
-        upi_id TEXT,                             -- optional, if you store UPI
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')*1000), -- epoch ms
-        variant INTEGER DEFAULT 0,               -- future use (e.g., virtual cards)
-        card_type TEXT,                           -- future use (e.g., credit/debit),
-        card_network TEXT                        -- future use (e.g., Visa/Master/RuPay/etc)        
+        holder TEXT,
+        bank_name TEXT,
+        account_mask TEXT,
+        ifsc TEXT,
+        upi_id TEXT,
+        senders TEXT, -- 🆕 new column
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')*1000),
+        variant INTEGER DEFAULT 0,
+        card_type TEXT,
+        card_network TEXT
       );
     ''');
+
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_pm_type ON payment_methods(type);',
     );

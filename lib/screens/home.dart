@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:trackify/components/account_summary/account_summary.dart';
 import 'package:trackify/components/empty_state.dart';
 import 'package:trackify/components/refresh_fab.dart';
 import 'package:trackify/components/settings.dart';
@@ -96,7 +97,7 @@ class _HomeState extends State<Home> with BackExitHelper {
 
   Widget _getCurrentPage() {
     if (_selectedIndex == 0) {
-      return _buildTransactionsView();
+      return AccountSummary();
     } else if (_selectedIndex == 1) {
       return const TalkToKuboPage();
     } else {

@@ -10,25 +10,25 @@ extension PaymentTypeSerialize on PaymentType {
 class PaymentMethod {
   final String id;
   final PaymentType type;
-
-  /// Display label for UI, e.g. "VISA •••• 1234" or "HDFC XX4321"
   final String label;
 
-  // ----- Optional card/bank details -----
-  final String? brand;        // Visa/Master/HDFC/etc
-  final String? last4;        // last 4 digits
-  final int? expiryMonth;     // nullable for bank
-  final int? expiryYear;      // nullable for bank
-  final String? holder;       // cardholder / acc holder
-  final String? bankName;     // for bank accounts
-  final String? accountMask;  // e.g., XX1234
-  final String? ifsc;         // optional
-  final String? upiId;        // optional
-  final int? variant;     // reserved for future use
-  final String? cardType;    // reserved for future use (e.g., credit/debit)
-  final String? cardNetwork; // reserved for future use (e.g., Visa/Master/RuPay/etc)
+  // Optional card/bank details
+  final String? brand;
+  final String? last4;
+  final int? expiryMonth;
+  final int? expiryYear;
+  final String? holder;
+  final String? bankName;
+  final String? accountMask;
+  final String? ifsc;
+  final String? upiId;
+  final int? variant;
+  final String? cardType;
+  final String? cardNetwork;
 
-  /// Unnamed constructor (required by DAO mappers)
+  /// Comma-separated SMS senders in DB
+  final String? senders;
+
   const PaymentMethod({
     required this.id,
     required this.type,
@@ -45,9 +45,50 @@ class PaymentMethod {
     this.variant,
     this.cardType,
     this.cardNetwork,
+    this.senders,
   });
 
-  // ---------- JSON helpers (to support your old SharedPreferences blob) ----------
+  /// Create a modified copy (immutability helper)
+  PaymentMethod copyWith({
+    String? id,
+    PaymentType? type,
+    String? label,
+    String? brand,
+    String? last4,
+    int? expiryMonth,
+    int? expiryYear,
+    String? holder,
+    String? bankName,
+    String? accountMask,
+    String? ifsc,
+    String? upiId,
+    int? variant,
+    String? cardType,
+    String? cardNetwork,
+    String? senders,
+    bool clearSenders = false,
+  }) {
+    return PaymentMethod(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      label: label ?? this.label,
+      brand: brand ?? this.brand,
+      last4: last4 ?? this.last4,
+      expiryMonth: expiryMonth ?? this.expiryMonth,
+      expiryYear: expiryYear ?? this.expiryYear,
+      holder: holder ?? this.holder,
+      bankName: bankName ?? this.bankName,
+      accountMask: accountMask ?? this.accountMask,
+      ifsc: ifsc ?? this.ifsc,
+      upiId: upiId ?? this.upiId,
+      variant: variant ?? this.variant,
+      cardType: cardType ?? this.cardType,
+      cardNetwork: cardNetwork ?? this.cardNetwork,
+      senders: senders ?? this.senders,
+    );
+  }
+
+  /// Convert to DB-compatible map
   Map<String, Object?> toMap() => {
     'id': id,
     'type': type.toDb(),
@@ -64,8 +105,10 @@ class PaymentMethod {
     'variant': variant,
     'card_type': cardType,
     'card_network': cardNetwork,
+    'senders': senders == null ? null : senders // store as comma-separated
   };
 
+  /// Parse from DB map
   factory PaymentMethod.fromMap(Map<String, Object?> map) {
     int? asInt(Object? v) {
       if (v == null) return null;
@@ -77,12 +120,19 @@ class PaymentMethod {
 
     String? asString(Object? v) => v?.toString();
 
+    List<String>? parseSenders(Object? raw) {
+      if (raw == null) return null;
+      final s = raw.toString().trim();
+      if (s.isEmpty) return null;
+      return s.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+
     final typeStr = asString(map['type']) ?? 'card';
+
     return PaymentMethod(
       id: asString(map['id']) ?? '',
       type: PaymentTypeSerialize.fromDb(typeStr),
-      label: asString(map['label']) ??
-          _fallbackLabelForMap(map), // build something readable if missing
+      label: asString(map['label']) ?? _fallbackLabelForMap(map),
       brand: asString(map['brand']),
       last4: asString(map['last4']),
       expiryMonth: asInt(map['expiry_month']),
@@ -95,6 +145,7 @@ class PaymentMethod {
       variant: asInt(map['variant']),
       cardType: asString(map['card_type']),
       cardNetwork: asString(map['card_network']),
+      senders: asString(map['senders']),
     );
   }
 
@@ -116,7 +167,7 @@ class PaymentMethod {
     }
   }
 
-  // Old helpers compatibility
+  // ---------- List serialization helpers ----------
   static List<PaymentMethod> listFromJson(String raw) {
     final decoded = jsonDecode(raw);
     if (decoded is List) {

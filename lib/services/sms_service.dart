@@ -59,6 +59,46 @@ class SmsService {
     return hasSender && hasKeyword;
   }
 
+  Future<List<SmsMessage>> fetchSmsByKeywords(List<String> keywords) async {
+    final messages = await _query.querySms(kinds: [SmsQueryKind.inbox]);
+    final lowerKeywords = keywords.map((k) => k.toLowerCase()).toList();
+
+    return messages.where((message) {
+      final body = message.body?.toLowerCase() ?? '';
+      return lowerKeywords.any((k) => body.contains(k));
+    }).toList();
+  }
+
+  Future<List<String>> listAllSendersWithRelevantSms(List<String> keywords) async {
+
+    final transactionKeywords = ['debited', 'credited', 'sent via upi', 'balance'];
+
+    final senders = <String>{};
+    final messages = await fetchSmsByKeywords(keywords);
+
+    for (var message in messages) {
+      final sender = message.sender?.toLowerCase() ?? '';
+      final body = message.body?.toLowerCase() ?? '';
+
+      final hasKeyword = transactionKeywords.any((k) => body.contains(k.toLowerCase()));
+      if (hasKeyword && sender.isNotEmpty) {
+        senders.add(sender);
+      }
+    }
+
+    return senders.toList()..sort();
+  }
+
+  Future<List<SmsMessage>> getAllSmsFromSender(String sender) async {
+    final messages = await _query.querySms(kinds: [SmsQueryKind.inbox]);
+    final List<String> lowerSender = sender.toLowerCase().split(",");
+
+    return messages.where((message) {
+      final msgSender = message.sender?.toLowerCase() ?? '';
+      return lowerSender.contains(msgSender);
+    }).toList();
+  }
+
   Transaction? _parseTransaction(SmsMessage message) {
     final body = message.body ?? '';
     final sender = message.sender ?? '';
