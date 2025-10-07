@@ -112,11 +112,9 @@ class _HomeState extends State<Home> with BackExitHelper {
       child: Scaffold(
         appBar: TrackifyAppBar(
           titleText: 'Trackify',
+          onRefreshPressed: _syncAndRefresh,
         ),
         body: _getCurrentPage(),
-        floatingActionButton: _selectedIndex == 0
-            ? RefreshFab(onPressed: _syncAndRefresh)
-            : null,
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) {

@@ -4,7 +4,8 @@ import 'package:trackify/screens/login_page_v2.dart';
 
 class TrackifyAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String titleText;
-  const TrackifyAppBar({super.key, required this.titleText});
+  final VoidCallback onRefreshPressed;
+  const TrackifyAppBar({super.key, required this.titleText, required this.onRefreshPressed});
   
   void _onLogoutPressed(BuildContext context) async {
     // Implement logout functionality here
@@ -30,7 +31,7 @@ class TrackifyAppBar extends StatelessWidget implements PreferredSizeWidget {
         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
       ),
       actions: [
-        IconButton(onPressed: (){_onLogoutPressed(context);}, icon: Icon(Icons.logout, size: 20,), tooltip: 'Logout',)
+        IconButton(onPressed: onRefreshPressed, icon: Icon(Icons.refresh, size: 20,), tooltip: 'Refresh',)
       ],
     );
   }

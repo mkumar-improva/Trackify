@@ -192,189 +192,198 @@ class _AccountSummaryState extends State<AccountSummary> {
       return const EmptyState();
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      children: [
-        const Text(
-          "Your Accounts",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-
-        // Horizontal carousel
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            children: List.generate(items.length, (index) {
-              final method = items[index];
-              final isSelected = index == selectedCard;
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: GestureDetector(
-                  onTap: () => onCardTapped(index),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOut,
-                    child: Container(
-                      decoration: isSelected
-                          ? BoxDecoration(
-                              border: Border.all(
-                                color: AppTheme.linkPurple,
-                                width: 2,
-                              ),
-                              borderRadius: const BorderRadius.all(
-                                Radius.circular(18),
-                              ),
-                            )
-                          : null,
-                      child: CardPreview(
-                        method: method,
-                        bankNameVisibility: true,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Your Accounts",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-        ),
+          const SizedBox(height: 12),
 
-        const SizedBox(height: 8),
+          // Horizontal carousel
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: List.generate(items.length, (index) {
+                final method = items[index];
+                final isSelected = index == selectedCard;
 
-        // Filter row: Month dropdown + clear
-        Row(
-          children: [
-            const Text(
-              "Transactions",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(width: 10),
-            if (_txLoading == false && _monthKeys.isNotEmpty)
-              DropdownButton<String>(
-                value: _selectedMonthKey,
-                hint: const Text('All months'),
-                items: [
-                  const DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('All months'),
-                  ),
-                  ..._monthKeys.map(
-                    (k) => DropdownMenuItem<String>(
-                      value: k,
-                      child: Text(_labelFromKey(k)),
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: GestureDetector(
+                    onTap: () => onCardTapped(index),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOut,
+                      child: Container(
+                        decoration: isSelected
+                            ? BoxDecoration(
+                                border: Border.all(
+                                  color: AppTheme.linkPurple,
+                                  width: 2,
+                                ),
+                                borderRadius: const BorderRadius.all(
+                                  Radius.circular(18),
+                                ),
+                              )
+                            : null,
+                        child: CardPreview(
+                          method: method,
+                          bankNameVisibility: true,
+                        ),
+                      ),
                     ),
                   ),
-                ],
-                onChanged: _onMonthChanged,
-              ),
-            SizedBox(width: 10),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  Text(
-                    'Page ${_currentPage + 1} of $_totalPages · '
-                    '${_filteredByMonth.length} txns',
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(width: 18),
-                  InkWell(
-                    child: Icon(Icons.chevron_left),
-                    onTap: _currentPage == 0 ? null : _goPrevPage,
-                  ),
-                  const SizedBox(width: 12),
-                  InkWell(
-                    child: Icon(Icons.chevron_right),
-                    onTap: _currentPage >= _totalPages - 1 ? null : _goNextPage,
-                  ),
-                ],
-              ),
+                );
+              }),
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
+          ),
 
-        // Transactions states: loading / error / empty / list + pagination
-        if (_txLoading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (_txError != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              "Could not load transactions:\n$_txError",
-              style: const TextStyle(color: Colors.red),
-            ),
-          )
-        else if (_filteredByMonth.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Column(
-              children: const [
-                Icon(Icons.receipt_long_outlined, size: 36, color: Colors.grey),
-                SizedBox(height: 8),
-                Text(
-                  "No transactions found for this filter",
-                  style: TextStyle(color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          )
-        else
-          Column(
+          const SizedBox(height: 8),
+
+          // Filter row: Month dropdown + clear
+          Row(
             children: [
-              // Page info + controls
-              const SizedBox(height: 8),
-
-              // Paged list (max 100 items per page)
-              SizedBox(
-                height: 480, // 👈 fixed scrollable height
-                child: ListView.separated(
-                  itemCount: _paged.length,
-                  physics:
-                      const AlwaysScrollableScrollPhysics(), // make it scrollable
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
-                  itemBuilder: (context, i) {
-                    final msg = _paged[i];
-                    final body = (msg.body ?? '').trim();
-                    final sender = (msg.sender ?? '').trim();
-                    final when = msg.date ?? DateTime.now();
-
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F6F8),
-                        borderRadius: BorderRadius.circular(12),
+              const Text(
+                "Transactions",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 10),
+              if (_txLoading == false && _monthKeys.isNotEmpty)
+                DropdownButton<String>(
+                  value: _selectedMonthKey,
+                  hint: const Text('All months'),
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('All months'),
+                    ),
+                    ..._monthKeys.map(
+                      (k) => DropdownMenuItem<String>(
+                        value: k,
+                        child: Text(_labelFromKey(k)),
                       ),
-                      child: ListTile(
-                        dense: false,
-                        leading: const CircleAvatar(
-                          radius: 20,
-                          child: Icon(Icons.account_balance_wallet),
-                        ),
-                        title: Text(
-                          body.isEmpty ? '(no message body)' : body,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          [
-                            sender.isEmpty ? 'Unknown' : sender,
-                            _fmtDateTime(when),
-                          ].where((s) => s.isNotEmpty).join(' · '),
-                        ),
-                      ),
-                    );
-                  },
+                    ),
+                  ],
+                  onChanged: _onMonthChanged,
+                ),
+              const SizedBox(width: 10),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    Text(
+                      'Page ${_currentPage + 1} of $_totalPages · '
+                      '${_filteredByMonth.length} txns',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(width: 18),
+                    InkWell(
+                      child: Icon(Icons.chevron_left),
+                      onTap: _currentPage == 0 ? null : _goPrevPage,
+                    ),
+                    const SizedBox(width: 12),
+                    InkWell(
+                      child: Icon(Icons.chevron_right),
+                      onTap: _currentPage >= _totalPages - 1
+                          ? null
+                          : _goNextPage,
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-      ],
+          const SizedBox(height: 8),
+
+          // Transactions states: loading / error / empty / list + pagination
+          if (_txLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_txError != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                "Could not load transactions:\n$_txError",
+                style: const TextStyle(color: Colors.red),
+              ),
+            )
+          else if (_filteredByMonth.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 36,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    "No transactions found for this filter",
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
+          else
+            // Use Expanded instead of fixed height
+            Expanded(
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+
+                  // Paged list - now uses Expanded to take remaining space
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: _paged.length,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      separatorBuilder: (_, __) => const SizedBox(height: 6),
+                      itemBuilder: (context, i) {
+                        final msg = _paged[i];
+                        final body = (msg.body ?? '').trim();
+                        final sender = (msg.sender ?? '').trim();
+                        final when = msg.date ?? DateTime.now();
+
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F6F8),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListTile(
+                            dense: false,
+                            leading: const CircleAvatar(
+                              radius: 20,
+                              child: Icon(Icons.account_balance_wallet),
+                            ),
+                            title: Text(
+                              body.isEmpty ? '(no message body)' : body,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              [
+                                sender.isEmpty ? 'Unknown' : sender,
+                                _fmtDateTime(when),
+                              ].where((s) => s.isNotEmpty).join(' · '),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
