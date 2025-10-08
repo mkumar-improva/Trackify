@@ -6,6 +6,9 @@ import 'package:trackify/components/card/payment_store.dart';
 import 'package:trackify/components/empty_state.dart';
 import 'package:trackify/services/sms_service.dart';
 import 'package:trackify/theme/app_theme.dart';
+import 'package:trackify/components/account_summary/transactions_view.dart';
+import 'package:trackify/components/account_summary/trends_view.dart';
+import 'package:trackify/types/homeTabs.dart';
 
 class AccountSummary extends StatefulWidget {
   const AccountSummary({super.key});
@@ -17,6 +20,10 @@ class AccountSummary extends StatefulWidget {
 class _AccountSummaryState extends State<AccountSummary> {
   final SmsService _smsService = SmsService();
   final PaymentStore store = PaymentStore();
+  
+  // Active tab
+  String _activeTab = homeTabs.first.value; // default to first tab
+ // default to transactions view
 
   // raw transactions for the selected card
   List<SmsMessage> transactions = [];
@@ -193,7 +200,7 @@ class _AccountSummaryState extends State<AccountSummary> {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -244,146 +251,57 @@ class _AccountSummaryState extends State<AccountSummary> {
           ),
 
           const SizedBox(height: 8),
+          Row(children: homeTabs.map((tab) {
+            final isActive = _activeTab == tab.value;
+            return Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _activeTab = tab.value;
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isActive ? AppTheme.linkPurple : null,
+                  foregroundColor: isActive ? Colors.white : null,
+                ),
+                child: Text(
+                  tab.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            );
+          }).toList()),
 
-          // Filter row: Month dropdown + clear
-          Row(
-            children: [
-              const Text(
-                "Transactions",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(width: 10),
-              if (_txLoading == false && _monthKeys.isNotEmpty)
-                DropdownButton<String>(
-                  value: _selectedMonthKey,
-                  hint: const Text('All months'),
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: null,
-                      child: Text('All months'),
-                    ),
-                    ..._monthKeys.map(
-                      (k) => DropdownMenuItem<String>(
-                        value: k,
-                        child: Text(_labelFromKey(k)),
-                      ),
-                    ),
-                  ],
-                  onChanged: _onMonthChanged,
-                ),
-              const SizedBox(width: 10),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    Text(
-                      'Page ${_currentPage + 1} of $_totalPages · '
-                      '${_filteredByMonth.length} txns',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(width: 18),
-                    InkWell(
-                      child: Icon(Icons.chevron_left),
-                      onTap: _currentPage == 0 ? null : _goPrevPage,
-                    ),
-                    const SizedBox(width: 12),
-                    InkWell(
-                      child: Icon(Icons.chevron_right),
-                      onTap: _currentPage >= _totalPages - 1
-                          ? null
-                          : _goNextPage,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 8),
+          
+          if (_activeTab == 'transactions') ...[
 
-          // Transactions states: loading / error / empty / list + pagination
-          if (_txLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_txError != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                "Could not load transactions:\n$_txError",
-                style: const TextStyle(color: Colors.red),
-              ),
-            )
-          else if (_filteredByMonth.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 36,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    "No transactions found for this filter",
-                    style: TextStyle(color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            )
-          else
-            // Use Expanded instead of fixed height
-            Expanded(
-              child: Column(
-                children: [
-                  const SizedBox(height: 8),
-
-                  // Paged list - now uses Expanded to take remaining space
-                  Expanded(
-                    child: ListView.separated(
-                      itemCount: _paged.length,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      separatorBuilder: (_, __) => const SizedBox(height: 6),
-                      itemBuilder: (context, i) {
-                        final msg = _paged[i];
-                        final body = (msg.body ?? '').trim();
-                        final sender = (msg.sender ?? '').trim();
-                        final when = msg.date ?? DateTime.now();
-
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F6F8),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ListTile(
-                            dense: false,
-                            leading: const CircleAvatar(
-                              radius: 20,
-                              child: Icon(Icons.account_balance_wallet),
-                            ),
-                            title: Text(
-                              body.isEmpty ? '(no message body)' : body,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Text(
-                              [
-                                sender.isEmpty ? 'Unknown' : sender,
-                                _fmtDateTime(when),
-                              ].where((s) => s.isNotEmpty).join(' · '),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
+          // Show appropriate view based on active tab
+          Expanded(
+            child: _activeTab == 'transactions'
+                ? TransactionsView(
+                    txLoading: _txLoading,
+                    txError: _txError,
+                    paged: _paged,
+                    filteredByMonth: _filteredByMonth,
+                    currentPage: _currentPage,
+                    totalPages: _totalPages,
+                    monthKeys: _monthKeys,
+                    selectedMonthKey: _selectedMonthKey,
+                    onMonthChanged: _onMonthChanged,
+                    goNextPage: _goNextPage,
+                    goPrevPage: _goPrevPage,
+                    fmtDateTime: _fmtDateTime,
+                  )
+                : const TrendsView(),
+          ),
+          ]
+        ]
+      )
     );
   }
 }
