@@ -278,8 +278,6 @@ class _AccountSummaryState extends State<AccountSummary> {
 
           const SizedBox(height: 8),
           
-          if (_activeTab == 'transactions') ...[
-
           // Show appropriate view based on active tab
           Expanded(
             child: _activeTab == 'transactions'
@@ -298,8 +296,7 @@ class _AccountSummaryState extends State<AccountSummary> {
                     fmtDateTime: _fmtDateTime,
                   )
                 : const TrendsView(),
-          ),
-          ]
+          )
         ]
       )
     );
