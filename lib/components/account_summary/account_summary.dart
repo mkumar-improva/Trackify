@@ -20,10 +20,10 @@ class AccountSummary extends StatefulWidget {
 class _AccountSummaryState extends State<AccountSummary> {
   final SmsService _smsService = SmsService();
   final PaymentStore store = PaymentStore();
-  
+
   // Active tab
   String _activeTab = homeTabs.first.value; // default to first tab
- // default to transactions view
+  // default to transactions view
 
   // raw transactions for the selected card
   List<SmsMessage> transactions = [];
@@ -187,6 +187,77 @@ class _AccountSummaryState extends State<AccountSummary> {
     });
   }
 
+  Widget _buildCardDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.credit_card, color: AppTheme.linkPurple, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: selectedCard,
+                icon: Icon(
+                  Icons.keyboard_arrow_down,
+                  color: AppTheme.linkPurple,
+                ),
+                isExpanded: true,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+                items: List.generate(store.items.length, (index) {
+                  final method = store.items[index];
+                  return DropdownMenuItem(
+                    value: index,
+                    child: Row(
+                      children: [
+                        Text(
+                          method.bankName ?? 'Card ${index + 1}',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          method.last4 != null ? '**** ${method.last4}' : ' ',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                onChanged: (int? newIndex) {
+                  if (newIndex != null) {
+                    onCardTapped(newIndex);
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final items = store.items;
@@ -204,80 +275,77 @@ class _AccountSummaryState extends State<AccountSummary> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Your Accounts",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
+          _buildCardDropdown(),
+
+          const SizedBox(height: 16),
 
           // Horizontal carousel
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: List.generate(items.length, (index) {
-                final method = items[index];
-                final isSelected = index == selectedCard;
+          // SingleChildScrollView(
+          //   scrollDirection: Axis.horizontal,
+          //   physics: const BouncingScrollPhysics(),
+          //   child: Row(
+          //     children: List.generate(items.length, (index) {
+          //       final method = items[index];
+          //       final isSelected = index == selectedCard;
 
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: GestureDetector(
-                    onTap: () => onCardTapped(index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
-                      child: Container(
-                        decoration: isSelected
-                            ? BoxDecoration(
-                                border: Border.all(
-                                  color: AppTheme.linkPurple,
-                                  width: 2,
-                                ),
-                                borderRadius: const BorderRadius.all(
-                                  Radius.circular(18),
-                                ),
-                              )
-                            : null,
-                        child: CardPreview(
-                          method: method,
-                          bankNameVisibility: true,
-                        ),
-                      ),
-                    ),
+          //       return Padding(
+          //         padding: const EdgeInsets.only(right: 12),
+          //         child: GestureDetector(
+          //           onTap: () => onCardTapped(index),
+          //           child: AnimatedContainer(
+          //             duration: const Duration(milliseconds: 200),
+          //             curve: Curves.easeOut,
+          //             child: Container(
+          //               decoration: isSelected
+          //                   ? BoxDecoration(
+          //                       border: Border.all(
+          //                         color: AppTheme.linkPurple,
+          //                         width: 2,
+          //                       ),
+          //                       borderRadius: const BorderRadius.all(
+          //                         Radius.circular(18),
+          //                       ),
+          //                     )
+          //                   : null,
+          //               child: CardPreview(
+          //                 method: method,
+          //                 bankNameVisibility: true,
+          //               ),
+          //             ),
+          //           ),
+          //         ),
+          //       );
+          //     }),
+          //   ),
+          // ),
+          const SizedBox(height: 8),
+          Row(
+            children: homeTabs.map((tab) {
+              final isActive = _activeTab == tab.value;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(tab.name),
+                  selected: isActive,
+                  onSelected: (_) {
+                    setState(() {
+                      _activeTab = tab.value;
+                    });
+                  },
+                  selectedColor: AppTheme.linkPurple,
+                  labelStyle: TextStyle(
+                    color: isActive ? Colors.white : Colors.grey[700],
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                   ),
-                );
-              }),
-            ),
+                  elevation: isActive ? 2 : 0,
+                  pressElevation: 4,
+                ),
+              );
+            }).toList(),
           ),
 
           const SizedBox(height: 8),
-          Row(children: homeTabs.map((tab) {
-            final isActive = _activeTab == tab.value;
-            return Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _activeTab = tab.value;
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isActive ? AppTheme.linkPurple : null,
-                  foregroundColor: isActive ? Colors.white : null,
-                ),
-                child: Text(
-                  tab.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            );
-          }).toList()),
 
-          const SizedBox(height: 8),
-          
           // Show appropriate view based on active tab
           Expanded(
             child: _activeTab == 'transactions'
@@ -296,9 +364,9 @@ class _AccountSummaryState extends State<AccountSummary> {
                     fmtDateTime: _fmtDateTime,
                   )
                 : const TrendsView(),
-          )
-        ]
-      )
+          ),
+        ],
+      ),
     );
   }
 }
