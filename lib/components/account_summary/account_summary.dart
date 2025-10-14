@@ -20,10 +20,10 @@ class AccountSummary extends StatefulWidget {
 class _AccountSummaryState extends State<AccountSummary> {
   final SmsService _smsService = SmsService();
   final PaymentStore store = PaymentStore();
-  
+
   // Active tab
   String _activeTab = homeTabs.first.value; // default to first tab
- // default to transactions view
+  // default to transactions view
 
   // raw transactions for the selected card
   List<SmsMessage> transactions = [];
@@ -218,7 +218,6 @@ class _AccountSummaryState extends State<AccountSummary> {
               children: List.generate(items.length, (index) {
                 final method = items[index];
                 final isSelected = index == selectedCard;
-
                 return Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: GestureDetector(
@@ -251,57 +250,65 @@ class _AccountSummaryState extends State<AccountSummary> {
           ),
 
           const SizedBox(height: 8),
-          Row(children: homeTabs.map((tab) {
-            final isActive = _activeTab == tab.value;
-            return Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _activeTab = tab.value;
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isActive ? AppTheme.linkPurple : null,
-                  foregroundColor: isActive ? Colors.white : null,
-                ),
-                child: Text(
-                  tab.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+          Row(
+            children: homeTabs.map((tab) {
+              final isActive = _activeTab == tab.value;
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _activeTab = tab.value;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isActive ? AppTheme.linkPurple : null,
+                    foregroundColor: isActive ? Colors.white : null,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 2,
+                    ),
+                  ),
+                  child: Text(
+                    tab.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-            );
-          }).toList()),
+              );
+            }).toList(),
+          ),
 
           const SizedBox(height: 8),
-          
-          if (_activeTab == 'transactions') ...[
 
-          // Show appropriate view based on active tab
-          Expanded(
-            child: _activeTab == 'transactions'
-                ? TransactionsView(
-                    txLoading: _txLoading,
-                    txError: _txError,
-                    paged: _paged,
-                    filteredByMonth: _filteredByMonth,
-                    currentPage: _currentPage,
-                    totalPages: _totalPages,
-                    monthKeys: _monthKeys,
-                    selectedMonthKey: _selectedMonthKey,
-                    onMonthChanged: _onMonthChanged,
-                    goNextPage: _goNextPage,
-                    goPrevPage: _goPrevPage,
-                    fmtDateTime: _fmtDateTime,
-                  )
-                : const TrendsView(),
-          ),
-          ]
-        ]
-      )
+          if (_activeTab == 'transactions') ...[
+            // Show appropriate view based on active tab
+            Expanded(
+              child: _activeTab == 'transactions'
+                  ? TransactionsView(
+                      txLoading: _txLoading,
+                      txError: _txError,
+                      paged: _paged,
+                      filteredByMonth: _filteredByMonth,
+                      currentPage: _currentPage,
+                      totalPages: _totalPages,
+                      monthKeys: _monthKeys,
+                      selectedMonthKey: _selectedMonthKey,
+                      onMonthChanged: _onMonthChanged,
+                      goNextPage: _goNextPage,
+                      goPrevPage: _goPrevPage,
+                      fmtDateTime: _fmtDateTime,
+                    )
+                  : const TrendsView(),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

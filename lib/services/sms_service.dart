@@ -8,6 +8,92 @@ class SmsService {
   final SmsQuery _query = SmsQuery();
   final TransactionDao _dao = TransactionDao();
 
+  // ---------------- Merchant detection config ----------------
+  static const List<String> _merchantKeywords = [
+    'swiggy',
+    'zomato',
+    'amazon',
+    'amazon pay',
+    'amazonpay',
+    'flipkart',
+    'meesho',
+    'zepto',
+    'myntra',
+    'ajio',
+    'nykaa',
+    'bigbasket',
+    'blinkit',
+    'ola',
+    'uber',
+    'rapido',
+    'paytm mall',
+    'paytmmall',
+    'tata neu',
+    'tataneu',
+    'jiomart',
+    'jio mart',
+    'snapdeal',
+    'bookmyshow',
+    'book my show',
+    'make my trip',
+    'makemytrip',
+    'cleartrip',
+    'irctc',
+  ];
+
+  // Matches:
+  //  • brand words (with spacing variants)
+  //  • "to <merchant>"
+  //  • UPI handles like merchant@bank (local part contains the brand)
+  static final RegExp _merchantRegex = RegExp(
+    r'(?<![a-z0-9])(?:'
+    r'swiggy|zomato|amazon(?:\s*pay)?|flipkart|meesho|zepto|myntra|ajio|nykaa|bigbasket|blinkit|ola|uber|rapido|paytm(?:\s*mall)?|tata\s*neu|jiomart|jio\s*mart|snapdeal|book\s*my\s*show|bookmyshow|make\s*my\s*trip|makemytrip|cleartrip|irctc'
+    r')(?!(?:[a-z0-9]))'
+    r'|'
+    r'(?:to\s+(?:swiggy|zomato|amazon(?:\s*pay)?|flipkart|meesho|zepto|myntra|ajio|nykaa|bigbasket|blinkit|ola|uber|rapido|paytm(?:\s*mall)?|tata\s*neu|jiomart|jio\s*mart|snapdeal|book\s*my\s*show|bookmyshow|makemytrip|cleartrip|irctc))'
+    r'|'
+    r'(?:\b([a-z0-9._-]*?(?:swiggy|zomato|amazonpay|amazon|flipkart|meesho|zepto|myntra|ajio|nykaa|bigbasket|blinkit|ola|uber|rapido|paytm|tataneu|jiomart|bookmyshow|makemytrip|cleartrip|irctc))@[a-z0-9._-]+\b)',
+    caseSensitive: false,
+  );
+
+  // Normalize things like "book my show" -> "bookmyshow", "tata neu" -> "tataneu"
+  static String _normalizeMerchantKey(String s) =>
+      s.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+
+  /// Try to extract which merchant this SMS is about. Returns a normalized key or null.
+  static String? _matchMerchant(String senderLower, String bodyLower) {
+    // quick contains
+    for (final kw in _merchantKeywords) {
+      final kNorm = _normalizeMerchantKey(kw);
+      if (senderLower.contains(kNorm) || bodyLower.contains(kNorm)) {
+        return kNorm;
+      }
+    }
+
+    // regex matches (brand words / "to <merchant>" / UPI handles)
+    final m =
+        _merchantRegex.firstMatch(bodyLower) ??
+        _merchantRegex.firstMatch(senderLower);
+    if (m != null) {
+      final raw = (m.group(0) ?? m.group(1) ?? '').toLowerCase();
+      if (raw.isNotEmpty) return _normalizeMerchantKey(raw);
+    }
+
+    // UPI handle heuristic: local-part contains brand
+    final upiHandles = RegExp(
+      r'\b([a-z0-9._-]+)@[a-z0-9._-]+\b',
+      caseSensitive: false,
+    );
+    for (final h in upiHandles.allMatches(bodyLower)) {
+      final local = (h.group(1) ?? '').toLowerCase();
+      for (final kw in _merchantKeywords) {
+        final kNorm = _normalizeMerchantKey(kw);
+        if (local.contains(kNorm)) return kNorm;
+      }
+    }
+    return null;
+  }
+
   Future<bool> requestPermission() async {
     final status = await Permission.sms.request();
     if (status.isGranted) return true;
@@ -69,9 +155,15 @@ class SmsService {
     }).toList();
   }
 
-  Future<List<String>> listAllSendersWithRelevantSms(List<String> keywords) async {
-
-    final transactionKeywords = ['debited', 'credited', 'sent via upi', 'balance'];
+  Future<List<String>> listAllSendersWithRelevantSms(
+    List<String> keywords,
+  ) async {
+    final transactionKeywords = [
+      'debited',
+      'credited',
+      'sent via upi',
+      'balance',
+    ];
 
     final senders = <String>{};
     final messages = await fetchSmsByKeywords(keywords);
@@ -80,7 +172,9 @@ class SmsService {
       final sender = message.sender?.toLowerCase() ?? '';
       final body = message.body?.toLowerCase() ?? '';
 
-      final hasKeyword = transactionKeywords.any((k) => body.contains(k.toLowerCase()));
+      final hasKeyword = transactionKeywords.any(
+        (k) => body.contains(k.toLowerCase()),
+      );
       if (hasKeyword && sender.isNotEmpty) {
         senders.add(sender);
       }
@@ -155,5 +249,69 @@ class SmsService {
       account: account,
       date: date,
     );
+  }
+
+  /// Scans inbox, parses as usual, and returns only transactions that match known merchants.
+  /// Optionally pass a subset of merchant names (e.g., ['swiggy','amazon']) to filter.
+  Future<List<Transaction>> listMerchantTransactionsFromInbox({
+    List<String>? merchants,
+  }) async {
+    final msgs = await _query.querySms(kinds: [SmsQueryKind.inbox]);
+    final Set<String>? allow = merchants == null
+        ? null
+        : merchants.map(_normalizeMerchantKey).toSet();
+
+    final results = <Transaction>[];
+    for (final msg in msgs) {
+      final sender = (msg.sender ?? '').toLowerCase();
+      final body = (msg.body ?? '').toLowerCase();
+      final merchant = _matchMerchant(sender, body);
+      if (merchant == null) continue;
+      if (allow != null && !allow.contains(merchant)) continue;
+
+      final tx = _parseTransaction(msg);
+      if (tx != null) results.add(tx);
+    }
+    return results;
+  }
+
+  /// Same as above but grouped: { 'swiggy': [tx1, tx2], 'amazon': [tx3, ...], ... }
+  Future<Map<String, List<Transaction>>> listMerchantTransactionsGrouped({
+    List<String>? merchants,
+  }) async {
+    final flat = await listMerchantTransactionsFromInbox(merchants: merchants);
+    final map = <String, List<Transaction>>{};
+    for (final tx in flat) {
+      final senderLower = tx.sender.toLowerCase();
+      final bodyLower = tx.body.toLowerCase();
+      final merchant = _matchMerchant(senderLower, bodyLower);
+      if (merchant == null) continue;
+      (map[merchant] ??= <Transaction>[]).add(tx);
+    }
+    return map;
+  }
+
+  /// Returns: { '2025-10': { 'swiggy': [..], 'amazon': [..] }, '2025-09': {...} }
+  Future<Map<String, Map<String, List<Transaction>>>>
+  listMerchantTransactionsByMonth({List<String>? merchants}) async {
+    final flat = await listMerchantTransactionsFromInbox(merchants: merchants);
+    final out = <String, Map<String, List<Transaction>>>{};
+    for (final tx in flat) {
+      // Build month key "YYYY-MM"
+      final d = tx.date;
+      final key =
+          '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}';
+      final senderLower = tx.sender.toLowerCase();
+      final bodyLower = tx.body.toLowerCase();
+      final merchant = _matchMerchant(senderLower, bodyLower);
+      if (merchant == null) continue;
+
+      final monthMap = out.putIfAbsent(
+        key,
+        () => <String, List<Transaction>>{},
+      );
+      (monthMap[merchant] ??= <Transaction>[]).add(tx);
+    }
+    return out;
   }
 }
