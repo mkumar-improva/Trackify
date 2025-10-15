@@ -89,6 +89,8 @@ class TransactionsView extends StatelessWidget {
 
 
     return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Single Row Filter and Pagination Controls
         SingleChildScrollView(

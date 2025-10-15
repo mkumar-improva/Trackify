@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:trackify/components/card/card_manager.dart';
+import 'package:trackify/screens/login_page_v2.dart';
+import 'package:trackify/services/auth_service.dart';
 import 'package:trackify/theme/app_theme.dart';
 
 class Settings extends StatefulWidget {
@@ -12,6 +14,7 @@ class Settings extends StatefulWidget {
 
 class _SettingsState extends State<Settings> {
   bool autoSyncEnabled = false;
+  final FirebaseServices _firebaseServices = FirebaseServices();
 
   @override
   void initState() {
@@ -38,6 +41,17 @@ class _SettingsState extends State<Settings> {
       autoSyncEnabled = value;
     });
     setAutoSyncPreference(value);
+  }
+
+  logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool("isLoggedIn", false);
+    await _firebaseServices.signOut();
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginPage()),
+    );
   }
 
   @override
@@ -149,6 +163,20 @@ class _SettingsState extends State<Settings> {
             child: const Icon(Icons.help, color: Colors.black87),
           ),
           trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        ),
+        Divider(),
+        ListTile(
+          title: Text('Logout'),
+          leading: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFD5D4D4),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: const EdgeInsets.all(6), // inner spacing
+            child: const Icon(Icons.lock_person, color: Colors.black87),
+          ),
+          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+          onTap: logout,
         ),
       ],
     );
