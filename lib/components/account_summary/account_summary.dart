@@ -11,7 +11,14 @@ import 'package:trackify/components/account_summary/trends_view.dart';
 import 'package:trackify/types/homeTabs.dart';
 
 class AccountSummary extends StatefulWidget {
-  const AccountSummary({super.key});
+  final int selectedCardIndex;
+  final Function(int) onCardChanged;
+
+  const AccountSummary({
+    super.key,
+    required this.selectedCardIndex,
+    required this.onCardChanged,
+  });
 
   @override
   State<AccountSummary> createState() => _AccountSummaryState();
@@ -22,14 +29,12 @@ class _AccountSummaryState extends State<AccountSummary> {
   final PaymentStore store = PaymentStore();
 
   // Active tab
-  String _activeTab = homeTabs.first.value; // default to first tab
-  // default to transactions view
+  String _activeTab = homeTabs.first.value;
 
   // raw transactions for the selected card
   List<SmsMessage> transactions = [];
 
   // UI state
-  int selectedCard = 0;
   bool _loading = false;
 
   // transactions fetch state
@@ -39,8 +44,8 @@ class _AccountSummaryState extends State<AccountSummary> {
   // month filter + pagination
   static const int _pageSize = 100;
   int _currentPage = 0;
-  String? _selectedMonthKey; // format: 'yyyy-MM' (e.g., '2025-09')
-  List<String> _monthKeys = []; // available months from current transactions
+  String? _selectedMonthKey;
+  List<String> _monthKeys = [];
   final DateFormat _monthLabelFmt = DateFormat('MMM yyyy');
 
   @override
@@ -54,6 +59,15 @@ class _AccountSummaryState extends State<AccountSummary> {
   void dispose() {
     store.removeListener(_onStore);
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(AccountSummary oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload transactions when card changes
+    if (oldWidget.selectedCardIndex != widget.selectedCardIndex) {
+      _loadTransactionsForSelected();
+    }
   }
 
   void _onStore() => setState(() {});
@@ -71,18 +85,20 @@ class _AccountSummaryState extends State<AccountSummary> {
   }
 
   Future<void> _loadTransactionsForSelected() async {
-    if (store.items.isEmpty) return;
+    if (store.items.isEmpty || widget.selectedCardIndex >= store.items.length) {
+      return;
+    }
     setState(() {
       _txLoading = true;
       _txError = null;
-      _currentPage = 0; // reset pagination on reload
-      _selectedMonthKey = null; // reset filter when switching card
+      _currentPage = 0;
+      _selectedMonthKey = null;
     });
     try {
-      final senders = store.items[selectedCard].senders ?? "";
+      final senders = store.items[widget.selectedCardIndex].senders ?? "";
       final msgs = await _smsService.getAllSmsFromSender(senders);
 
-      // Sort newest first (optional but useful)
+      // Sort newest first
       msgs.sort((a, b) {
         final ad = a.date ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bd = b.date ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -104,16 +120,8 @@ class _AccountSummaryState extends State<AccountSummary> {
     }
   }
 
-  void onCardTapped(int index) async {
-    setState(() {
-      selectedCard = index;
-    });
-    await _loadTransactionsForSelected();
-  }
-
   String _fmtDateTime(DateTime dt) => DateFormat('dd MMM, hh:mm a').format(dt);
 
-  /// Build distinct month keys (yyyy-MM) from current `transactions`
   void _rebuildMonths() {
     final set = <String>{};
     for (final m in transactions) {
@@ -123,16 +131,13 @@ class _AccountSummaryState extends State<AccountSummary> {
         set.add(key);
       }
     }
-    final keys = set.toList()
-      ..sort((a, b) => b.compareTo(a)); // newest month first
+    final keys = set.toList()..sort((a, b) => b.compareTo(a));
     _monthKeys = keys;
   }
 
-  /// 'yyyy-MM'
   String _yyyyMm(DateTime dt) =>
       '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}';
 
-  /// Human label from a 'yyyy-MM' key
   String _labelFromKey(String key) {
     final parts = key.split('-');
     if (parts.length != 2) return key;
@@ -141,7 +146,6 @@ class _AccountSummaryState extends State<AccountSummary> {
     return _monthLabelFmt.format(DateTime(year, month));
   }
 
-  /// Apply month filter
   List<SmsMessage> get _filteredByMonth {
     if (_selectedMonthKey == null) return transactions;
     return transactions.where((m) {
@@ -151,7 +155,6 @@ class _AccountSummaryState extends State<AccountSummary> {
     }).toList();
   }
 
-  /// Paginated view on filtered data
   List<SmsMessage> get _paged {
     final list = _filteredByMonth;
     final start = _currentPage * _pageSize;
@@ -183,79 +186,8 @@ class _AccountSummaryState extends State<AccountSummary> {
   void _onMonthChanged(String? key) {
     setState(() {
       _selectedMonthKey = key;
-      _currentPage = 0; // reset on filter change
+      _currentPage = 0;
     });
-  }
-
-  Widget _buildCardDropdown() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.credit_card, color: AppTheme.linkPurple, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<int>(
-                value: selectedCard,
-                icon: Icon(
-                  Icons.keyboard_arrow_down,
-                  color: AppTheme.linkPurple,
-                ),
-                isExpanded: true,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-                items: List.generate(store.items.length, (index) {
-                  final method = store.items[index];
-                  return DropdownMenuItem(
-                    value: index,
-                    child: Row(
-                      children: [
-                        Text(
-                          method.bankName ?? 'Card ${index + 1}',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          method.last4 != null ? '**** ${method.last4}' : ' ',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                onChanged: (int? newIndex) {
-                  if (newIndex != null) {
-                    onCardTapped(newIndex);
-                  }
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -275,70 +207,55 @@ class _AccountSummaryState extends State<AccountSummary> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildCardDropdown(),
-
-          const SizedBox(height: 16),
-
-          // Horizontal carousel
-          // SingleChildScrollView(
-          //   scrollDirection: Axis.horizontal,
-          //   physics: const BouncingScrollPhysics(),
-          //   child: Row(
-          //     children: List.generate(items.length, (index) {
-          //       final method = items[index];
-          //       final isSelected = index == selectedCard;
-
-          //       return Padding(
-          //         padding: const EdgeInsets.only(right: 12),
-          //         child: GestureDetector(
-          //           onTap: () => onCardTapped(index),
-          //           child: AnimatedContainer(
-          //             duration: const Duration(milliseconds: 200),
-          //             curve: Curves.easeOut,
-          //             child: Container(
-          //               decoration: isSelected
-          //                   ? BoxDecoration(
-          //                       border: Border.all(
-          //                         color: AppTheme.linkPurple,
-          //                         width: 2,
-          //                       ),
-          //                       borderRadius: const BorderRadius.all(
-          //                         Radius.circular(18),
-          //                       ),
-          //                     )
-          //                   : null,
-          //               child: CardPreview(
-          //                 method: method,
-          //                 bankNameVisibility: true,
-          //               ),
-          //             ),
-          //           ),
-          //         ),
-          //       );
-          //     }),
-          //   ),
-          // ),
-          const SizedBox(height: 8),
+          // Tabs
           Row(
+            mainAxisAlignment: MainAxisAlignment.start,
             children: homeTabs.map((tab) {
               final isActive = _activeTab == tab.value;
+
               return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(tab.name),
-                  selected: isActive,
-                  onSelected: (_) {
-                    setState(() {
-                      _activeTab = tab.value;
-                    });
-                  },
-                  selectedColor: AppTheme.linkPurple,
-                  labelStyle: TextStyle(
-                    color: isActive ? Colors.white : Colors.grey[700],
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                padding: const EdgeInsets.only(right: 10),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  child: ChoiceChip(
+                    label: Text(
+                      tab.name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        letterSpacing: 0.2,
+                        color: isActive ? Colors.white : Colors.grey[700],
+                        fontWeight: isActive
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    ),
+                    selected: isActive,
+                    onSelected: (_) {
+                      setState(() {
+                        _activeTab = tab.value;
+                      });
+                    },
+                    selectedColor: AppTheme.linkPurple, // Active color
+                    backgroundColor:
+                        Colors.grey[100]!, // Subtle inactive background
+                    shadowColor: Colors.black.withOpacity(0.15),
+                    elevation: isActive ? 4 : 0,
+                    pressElevation: 6,
+                    showCheckmark: false,
+                    side: BorderSide(
+                      color: isActive ? AppTheme.linkPurple : Colors.grey[300]!,
+                      width: 1,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 8,
+                    ),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  elevation: isActive ? 2 : 0,
-                  pressElevation: 4,
                 ),
               );
             }).toList(),

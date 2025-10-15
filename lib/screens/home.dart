@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:trackify/components/account_summary/account_summary.dart';
 import 'package:trackify/components/empty_state.dart';
+import 'package:trackify/components/card/payment_store.dart';
 import 'package:trackify/components/refresh_fab.dart';
 import 'package:trackify/components/settings.dart';
 import 'package:trackify/components/talk_to_kubo.dart';
@@ -22,16 +23,39 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> with BackExitHelper {
   final SmsService _smsService = SmsService();
+  final PaymentStore _paymentStore = PaymentStore();
+  
   List<Transaction> _transactions = [];
   Map<String, MonthlySummary> _monthlySummaries = {};
   bool _loading = false;
+  bool _storeLoading = false;
 
   int _selectedIndex = 0;
+  int _selectedCardIndex = 0; // Lifted state for selected card
 
   @override
   void initState() {
     super.initState();
+    _paymentStore.addListener(_onStoreChange);
+    _initializeStores();
     _requestSmsPermission();
+  }
+
+  @override
+  void dispose() {
+    _paymentStore.removeListener(_onStoreChange);
+    super.dispose();
+  }
+
+  void _onStoreChange() {
+    setState(() {});
+  }
+
+  Future<void> _initializeStores() async {
+    setState(() => _storeLoading = true);
+    await _paymentStore.load();
+    if (!mounted) return;
+    setState(() => _storeLoading = false);
   }
 
   Future<void> _requestSmsPermission() async {
@@ -81,6 +105,12 @@ class _HomeState extends State<Home> with BackExitHelper {
     }
   }
 
+  void _onCardChanged(int newIndex) {
+    setState(() {
+      _selectedCardIndex = newIndex;
+    });
+  }
+
   Widget _buildTransactionsView() {
     return RefreshIndicator(
       onRefresh: _querySmsMessages,
@@ -97,7 +127,10 @@ class _HomeState extends State<Home> with BackExitHelper {
 
   Widget _getCurrentPage() {
     if (_selectedIndex == 0) {
-      return AccountSummary();
+      return AccountSummary(
+        selectedCardIndex: _selectedCardIndex,
+        onCardChanged: _onCardChanged,
+      );
     } else if (_selectedIndex == 1) {
       return const TalkToKuboPage();
     } else {
@@ -113,6 +146,10 @@ class _HomeState extends State<Home> with BackExitHelper {
         appBar: TrackifyAppBar(
           titleText: 'Trackify',
           onRefreshPressed: _syncAndRefresh,
+          paymentStore: _paymentStore,
+          selectedCardIndex: _selectedCardIndex,
+          onCardChanged: _onCardChanged,
+          showCardDropdown: _selectedIndex == 0,
         ),
         body: _getCurrentPage(),
         bottomNavigationBar: BottomNavigationBar(
@@ -123,7 +160,7 @@ class _HomeState extends State<Home> with BackExitHelper {
           type: BottomNavigationBarType.fixed,
           showSelectedLabels: true,
           showUnselectedLabels: true,
-          items: [
+          items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.list_alt_outlined),
               activeIcon: Icon(Icons.list_alt),
