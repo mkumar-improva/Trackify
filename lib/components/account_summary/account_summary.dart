@@ -10,6 +10,7 @@ import 'package:trackify/components/account_summary/transactions_view.dart';
 import 'package:trackify/components/account_summary/trends_view.dart';
 import 'package:trackify/types/homeTabs.dart';
 
+
 class AccountSummary extends StatefulWidget {
   final int selectedCardIndex;
   final Function(int) onCardChanged;
@@ -24,6 +25,7 @@ class AccountSummary extends StatefulWidget {
   State<AccountSummary> createState() => _AccountSummaryState();
 }
 
+
 class _AccountSummaryState extends State<AccountSummary> {
   final SmsService _smsService = SmsService();
   final PaymentStore store = PaymentStore();
@@ -31,18 +33,18 @@ class _AccountSummaryState extends State<AccountSummary> {
   // Active tab
   String _activeTab = homeTabs.first.value;
 
-  // raw transactions for the selected card
-  List<SmsMessage> transactions = [];
+  // Raw transactions for the selected card
+  List<SmsMessage> allTransactions = [];
 
   // UI state
   bool _loading = false;
 
-  // transactions fetch state
+  // Transactions fetch state
   bool _txLoading = false;
   String? _txError;
 
-  // month filter + pagination
-  static const int _pageSize = 100;
+  // Month filter + pagination
+  static const int _pageSize = 50; // Number of transactions per page
   int _currentPage = 0;
   String? _selectedMonthKey;
   List<String> _monthKeys = [];
@@ -88,12 +90,14 @@ class _AccountSummaryState extends State<AccountSummary> {
     if (store.items.isEmpty || widget.selectedCardIndex >= store.items.length) {
       return;
     }
+    
     setState(() {
       _txLoading = true;
       _txError = null;
       _currentPage = 0;
       _selectedMonthKey = null;
     });
+    
     try {
       final senders = store.items[widget.selectedCardIndex].senders ?? "";
       final msgs = await _smsService.getAllSmsFromSender(senders);
@@ -107,7 +111,7 @@ class _AccountSummaryState extends State<AccountSummary> {
 
       if (!mounted) return;
       setState(() {
-        transactions = msgs;
+        allTransactions = msgs;
         _rebuildMonths();
         _txLoading = false;
       });
@@ -124,7 +128,7 @@ class _AccountSummaryState extends State<AccountSummary> {
 
   void _rebuildMonths() {
     final set = <String>{};
-    for (final m in transactions) {
+    for (final m in allTransactions) {
       final dt = m.date;
       if (dt != null) {
         final key = _yyyyMm(dt);
@@ -146,23 +150,85 @@ class _AccountSummaryState extends State<AccountSummary> {
     return _monthLabelFmt.format(DateTime(year, month));
   }
 
+  // STEP 1: Filter by month
   List<SmsMessage> get _filteredByMonth {
-    if (_selectedMonthKey == null) return transactions;
-    return transactions.where((m) {
+    if (_selectedMonthKey == null) return allTransactions;
+    return allTransactions.where((m) {
       final dt = m.date;
       if (dt == null) return false;
       return _yyyyMm(dt) == _selectedMonthKey;
     }).toList();
   }
 
-  List<SmsMessage> get _paged {
-    final list = _filteredByMonth;
+  // STEP 2: Group filtered transactions by merchant
+  Map<String, List<SmsMessage>> get _groupedByMerchant {
+    final grouped = <String, List<SmsMessage>>{};
+    final unmatched = <SmsMessage>[];
+
+    for (final msg in _filteredByMonth) {
+      final sender = (msg.sender ?? '').toLowerCase();
+      final body = (msg.body ?? '').toLowerCase();
+      
+      final merchant = _smsService.matchMerchant(sender, body);
+      
+      if (merchant != null) {
+        (grouped[merchant] ??= <SmsMessage>[]).add(msg);
+      } else {
+        unmatched.add(msg);
+      }
+    }
+
+    // Add unmatched to "others" category
+    if (unmatched.isNotEmpty) {
+      grouped['others'] = unmatched;
+    }
+
+    return grouped;
+  }
+
+  // Get sorted merchant names
+  List<String> get _merchantNames {
+    final names = _groupedByMerchant.keys.toList();
+    // Sort alphabetically, but keep 'others' at the end
+    names.sort((a, b) {
+      if (a == 'others') return 1;
+      if (b == 'others') return -1;
+      return a.compareTo(b);
+    });
+    return names;
+  }
+
+  // STEP 3: Apply pagination to grouped structure
+  Map<String, List<SmsMessage>> get _pagedGroupedTransactions {
+    final allGrouped = _groupedByMerchant;
+    final merchantNames = _merchantNames;
+    
+    // Flatten to calculate total transactions
+    final flatList = <SmsMessage>[];
+    for (final merchant in merchantNames) {
+      flatList.addAll(allGrouped[merchant] ?? []);
+    }
+
+    // Calculate pagination range
     final start = _currentPage * _pageSize;
-    if (start >= list.length) return const [];
-    final end = (start + _pageSize) > list.length
-        ? list.length
+    if (start >= flatList.length) return {};
+
+    final end = (start + _pageSize) > flatList.length
+        ? flatList.length
         : (start + _pageSize);
-    return list.sublist(start, end);
+    
+    final pagedFlat = flatList.sublist(start, end);
+
+    // Re-group the paged transactions
+    final pagedGrouped = <String, List<SmsMessage>>{};
+    for (final msg in pagedFlat) {
+      final sender = (msg.sender ?? '').toLowerCase();
+      final body = (msg.body ?? '').toLowerCase();
+      final merchant = _smsService.matchMerchant(sender, body) ?? 'others';
+      (pagedGrouped[merchant] ??= <SmsMessage>[]).add(msg);
+    }
+
+    return pagedGrouped;
   }
 
   int get _totalPages {
@@ -186,7 +252,7 @@ class _AccountSummaryState extends State<AccountSummary> {
   void _onMonthChanged(String? key) {
     setState(() {
       _selectedMonthKey = key;
-      _currentPage = 0;
+      _currentPage = 0; // Reset to first page when month changes
     });
   }
 
@@ -236,9 +302,8 @@ class _AccountSummaryState extends State<AccountSummary> {
                         _activeTab = tab.value;
                       });
                     },
-                    selectedColor: AppTheme.linkPurple, // Active color
-                    backgroundColor:
-                        Colors.grey[100]!, // Subtle inactive background
+                    selectedColor: AppTheme.linkPurple,
+                    backgroundColor: Colors.grey[100]!,
                     shadowColor: Colors.black.withOpacity(0.15),
                     elevation: isActive ? 4 : 0,
                     pressElevation: 6,
@@ -269,8 +334,8 @@ class _AccountSummaryState extends State<AccountSummary> {
                 ? TransactionsView(
                     txLoading: _txLoading,
                     txError: _txError,
-                    paged: _paged,
-                    filteredByMonth: _filteredByMonth,
+                    groupedTransactions: _pagedGroupedTransactions,
+                    filteredCount: _filteredByMonth.length,
                     currentPage: _currentPage,
                     totalPages: _totalPages,
                     monthKeys: _monthKeys,

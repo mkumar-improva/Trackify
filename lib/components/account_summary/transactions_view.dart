@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:intl/intl.dart';
-import 'package:trackify/components/empty_state.dart';
-
 
 class TransactionsView extends StatelessWidget {
   final bool txLoading;
   final String? txError;
-  final List<SmsMessage> paged;
-  final List<SmsMessage> filteredByMonth;
+  final Map<String, List<SmsMessage>> groupedTransactions;
+  final int filteredCount;
   final int currentPage;
   final int totalPages;
   final List<String> monthKeys;
@@ -18,13 +16,12 @@ class TransactionsView extends StatelessWidget {
   final VoidCallback goPrevPage;
   final String Function(DateTime) fmtDateTime;
 
-
   const TransactionsView({
     super.key,
     required this.txLoading,
     required this.txError,
-    required this.paged,
-    required this.filteredByMonth,
+    required this.groupedTransactions,
+    required this.filteredCount,
     required this.currentPage,
     required this.totalPages,
     required this.monthKeys,
@@ -35,7 +32,6 @@ class TransactionsView extends StatelessWidget {
     required this.fmtDateTime,
   });
 
-
   String _labelFromKey(String key) {
     final parts = key.split('-');
     if (parts.length != 2) return key;
@@ -44,6 +40,169 @@ class TransactionsView extends StatelessWidget {
     return DateFormat('MMM yyyy').format(DateTime(year, month));
   }
 
+  String _formatMerchantName(String key) {
+    if (key == 'others') return 'Others';
+    // Capitalize first letter and replace common abbreviations
+    final formatted = key[0].toUpperCase() + key.substring(1);
+    return formatted
+        .replaceAll('amazonpay', 'Amazon Pay')
+        .replaceAll('paytmmall', 'Paytm Mall')
+        .replaceAll('tataneu', 'Tata Neu')
+        .replaceAll('jiomart', 'JioMart')
+        .replaceAll('bookmyshow', 'BookMyShow')
+        .replaceAll('makemytrip', 'MakeMyTrip')
+        .replaceAll('bigbasket', 'BigBasket');
+  }
+
+  Widget _getMerchantWidget(String merchant, Color color) {
+    switch (merchant.toLowerCase()) {
+      case 'swiggy':
+        return Image.asset(
+          'assets/images/swiggy_thumb.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'amazon':
+      case 'amazonpay':
+        return Image.asset(
+          'assets/images/amazon.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'flipkart':
+        return Image.asset(
+          'assets/images/flipkart.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'zomato':
+        return Image.asset(
+          'assets/images/zomato.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'zepto':
+        return Image.asset(
+          'assets/images/zepto.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'blinkit':
+        return Image.asset(
+          'assets/images/blinkit.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'ajio':
+        return Image.asset(
+          'assets/images/ajio.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'meesho':
+        return Image.asset(
+          'assets/images/meesho.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'myntra':
+        return Image.asset(
+          'assets/images/myntra.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'nykaa':
+        return Image.asset(
+          'assets/images/nykaa.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'bigbasket':
+        return Image.asset(
+          'assets/images/bigbasket.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'jiomart':
+        return Image.asset(
+          'assets/images/jiomart.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'ola':
+        return Image.asset(
+          'assets/images/ola.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'uber':
+        return Image.asset(
+          'assets/images/uber.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+      case 'rapido':
+        return Image.asset(
+          'assets/images/rapido.png',
+          width: 22,
+          height: 22,
+          fit: BoxFit.contain,
+        );
+
+      default:
+        return Icon(_getMerchantIcon(merchant), color: color, size: 22);
+    }
+  }
+
+  IconData _getMerchantIcon(String merchant) {
+    switch (merchant.toLowerCase()) {
+      case 'bookmyshow':
+        return Icons.movie;
+      case 'makemytrip':
+      case 'cleartrip':
+      case 'irctc':
+        return Icons.flight;
+      case 'paytm':
+      case 'gpay':
+      case 'paytmmall':
+        return Icons.payment;
+      default:
+        return Icons.store;
+    }
+  }
+
+  Color _getMerchantColor(String merchant) {
+    switch (merchant.toLowerCase()) {
+      case 'swiggy':
+        return Colors.orange;
+      case 'zomato':
+        return Colors.red;
+      case 'amazon':
+      case 'amazonpay':
+        return Colors.orange.shade800;
+      case 'flipkart':
+        return Colors.blue;
+      case 'ola':
+      case 'uber':
+        return Colors.black;
+      default:
+        return Colors.deepPurple;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +212,6 @@ class TransactionsView extends StatelessWidget {
         child: Center(child: CircularProgressIndicator()),
       );
     }
-
 
     if (txError != null) {
       return Padding(
@@ -65,21 +223,22 @@ class TransactionsView extends StatelessWidget {
       );
     }
 
-
-    if (filteredByMonth.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
+    if (groupedTransactions.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
         child: Column(
           children: [
-            Icon(
+            const Icon(
               Icons.receipt_long_outlined,
               size: 36,
               color: Colors.grey,
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              "No transactions found for this filter",
-              style: TextStyle(color: Colors.grey),
+              selectedMonthKey != null
+                  ? "No transactions found for ${_labelFromKey(selectedMonthKey!)}"
+                  : "No transactions found",
+              style: const TextStyle(color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],
@@ -87,26 +246,32 @@ class TransactionsView extends StatelessWidget {
       );
     }
 
+    // Get sorted merchant names (others at end)
+    final merchantNames = groupedTransactions.keys.toList();
+    merchantNames.sort((a, b) {
+      if (a == 'others') return 1;
+      if (b == 'others') return -1;
+      return a.compareTo(b);
+    });
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Single Row Filter and Pagination Controls
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F6F8),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Month Filter Dropdown
-                if (monthKeys.isNotEmpty) ...[
-                  Container(
+        // Filter and Pagination Controls
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F6F8),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              // Month Filter Dropdown - Takes flexible space
+              if (monthKeys.isNotEmpty) ...[
+                Flexible(
+                  flex: 2,
+                  child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -117,46 +282,35 @@ class TransactionsView extends StatelessWidget {
                       child: DropdownButton<String>(
                         value: selectedMonthKey,
                         isDense: true,
-                        hint: Row(
+                        isExpanded: true,
+                        hint: const Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
+                          children: [
                             Icon(
                               Icons.calendar_month,
-                              size: 16,
+                              size: 14,
                               color: Colors.grey,
                             ),
-                            SizedBox(width: 6),
-                            Text(
-                              'All months',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                            SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'All',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
-                        icon: const Icon(
-                          Icons.arrow_drop_down,
-                          size: 20,
-                          color: Colors.grey,
-                        ),
+                        icon: const Icon(Icons.arrow_drop_down, size: 18),
                         items: [
                           const DropdownMenuItem<String>(
                             value: null,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.calendar_month,
-                                  size: 16,
-                                  color: Colors.grey,
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  'All months',
-                                  style: TextStyle(fontSize: 13),
-                                ),
-                              ],
+                            child: Text(
+                              'All months',
+                              style: TextStyle(fontSize: 12),
                             ),
                           ),
                           ...monthKeys.map(
@@ -164,7 +318,8 @@ class TransactionsView extends StatelessWidget {
                               value: k,
                               child: Text(
                                 _labelFromKey(k),
-                                style: const TextStyle(fontSize: 13),
+                                style: const TextStyle(fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ),
@@ -173,184 +328,179 @@ class TransactionsView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                ],
-
-
-                // Transaction Count
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.receipt,
-                        size: 14,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${filteredByMonth.length}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
+                const SizedBox(width: 6),
+              ],
 
+              // Transaction Count Badge - Fixed minimal size
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.receipt, size: 12, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$filteredCount',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-                const SizedBox(width: 12),
+              const SizedBox(width: 6),
 
-
-                // Page Info
-                Text(
-                  '${currentPage + 1}/${totalPages}',
+              // Page Info - Compact
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Text(
+                  '${currentPage + 1}/$totalPages',
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
                 ),
+              ),
 
+              const SizedBox(width: 6),
 
-                const SizedBox(width: 8),
-
-
-                // Previous Button
-                IconButton(
-                  onPressed: currentPage == 0 ? null : goPrevPage,
-                  icon: const Icon(Icons.chevron_left),
-                  iconSize: 20,
+              // Previous Button - Compact
+              InkWell(
+                onTap: currentPage == 0 ? null : goPrevPage,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
                   padding: const EdgeInsets.all(6),
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: currentPage == 0
+                  decoration: BoxDecoration(
+                    color: currentPage == 0
                         ? Colors.grey.shade200
                         : Colors.white,
-                    foregroundColor: currentPage == 0
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Icon(
+                    Icons.chevron_left,
+                    size: 16,
+                    color: currentPage == 0
                         ? Colors.grey.shade400
                         : Colors.black87,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(
-                        color: Colors.grey.shade300,
-                      ),
-                    ),
                   ),
                 ),
+              ),
 
+              const SizedBox(width: 4),
 
-                const SizedBox(width: 4),
-
-
-                // Next Button
-                IconButton(
-                  onPressed:
-                      currentPage >= totalPages - 1 ? null : goNextPage,
-                  icon: const Icon(Icons.chevron_right),
-                  iconSize: 20,
+              // Next Button - Compact
+              InkWell(
+                onTap: currentPage >= totalPages - 1 ? null : goNextPage,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
                   padding: const EdgeInsets.all(6),
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: currentPage >= totalPages - 1
+                  decoration: BoxDecoration(
+                    color: currentPage >= totalPages - 1
                         ? Colors.grey.shade200
                         : Colors.white,
-                    foregroundColor: currentPage >= totalPages - 1
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Icon(
+                    Icons.chevron_right,
+                    size: 16,
+                    color: currentPage >= totalPages - 1
                         ? Colors.grey.shade400
                         : Colors.black87,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(
-                        color: Colors.grey.shade300,
-                      ),
-                    ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
 
+        const SizedBox(height: 12),
 
-        const SizedBox(height: 8),
-
-
-        // Paged Transaction List
+        // Grouped Transaction List by Merchant
         Expanded(
-          child: ListView.separated(
-            itemCount: paged.length,
+          child: ListView.builder(
+            itemCount: merchantNames.length,
             physics: const AlwaysScrollableScrollPhysics(),
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, i) {
-              final msg = paged[i];
-              final body = (msg.body ?? '').trim();
-              final sender = (msg.sender ?? '').trim();
-              final when = msg.date ?? DateTime.now();
+            itemBuilder: (context, merchantIndex) {
+              final merchant = merchantNames[merchantIndex];
+              final txList = groupedTransactions[merchant] ?? [];
+              final color = _getMerchantColor(merchant);
 
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Merchant Header
 
-              return Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F6F8),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.grey.shade200,
-                    width: 1,
-                  ),
-                ),
-                child: ListTile(
-                  dense: false,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  leading: CircleAvatar(
-                    radius: 22,
-                    backgroundColor: Colors.blue.shade50,
-                    child: Icon(
-                      Icons.account_balance_wallet,
-                      color: Colors.blue.shade700,
-                      size: 22,
-                    ),
-                  ),
-                  title: Text(
-                    body.isEmpty ? '(no message body)' : body,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      [
-                        sender.isEmpty ? 'Unknown' : sender,
-                        fmtDateTime(when),
-                      ].where((s) => s.isNotEmpty).join(' · '),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
+                  // Transactions for this merchant
+                  ...txList.map((msg) {
+                    final body = (msg.body ?? '').trim();
+                    final sender = (msg.sender ?? '').trim();
+                    final when = msg.date ?? DateTime.now();
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F6F8),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey.shade200,
+                          width: 1,
+                        ),
                       ),
-                    ),
-                  ),
-                ),
+                      child: ListTile(
+                        dense: false,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        leading: CircleAvatar(
+                          radius: 22,
+                          backgroundColor: color.withOpacity(0.1),
+                          child: _getMerchantWidget(merchant, color),
+                        ),
+                        title: Text(
+                          body.isEmpty ? '(no message body)' : body,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            [
+                              sender.isEmpty ? 'Unknown' : sender,
+                              fmtDateTime(when),
+                            ].where((s) => s.isNotEmpty).join(' · '),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+
+                  const SizedBox(height: 16), // Space between groups
+                ],
               );
             },
           ),

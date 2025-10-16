@@ -61,7 +61,7 @@ class SmsService {
       s.toLowerCase().replaceAll(RegExp(r'\s+'), '');
 
   /// Try to extract which merchant this SMS is about. Returns a normalized key or null.
-  static String? _matchMerchant(String senderLower, String bodyLower) {
+  String? matchMerchant(String senderLower, String bodyLower) {
     // quick contains
     for (final kw in _merchantKeywords) {
       final kNorm = _normalizeMerchantKey(kw);
@@ -265,7 +265,7 @@ class SmsService {
     for (final msg in msgs) {
       final sender = (msg.sender ?? '').toLowerCase();
       final body = (msg.body ?? '').toLowerCase();
-      final merchant = _matchMerchant(sender, body);
+      final merchant = matchMerchant(sender, body);
       if (merchant == null) continue;
       if (allow != null && !allow.contains(merchant)) continue;
 
@@ -284,7 +284,7 @@ class SmsService {
     for (final tx in flat) {
       final senderLower = tx.sender.toLowerCase();
       final bodyLower = tx.body.toLowerCase();
-      final merchant = _matchMerchant(senderLower, bodyLower);
+      final merchant = matchMerchant(senderLower, bodyLower);
       if (merchant == null) continue;
       (map[merchant] ??= <Transaction>[]).add(tx);
     }
@@ -303,7 +303,7 @@ class SmsService {
           '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}';
       final senderLower = tx.sender.toLowerCase();
       final bodyLower = tx.body.toLowerCase();
-      final merchant = _matchMerchant(senderLower, bodyLower);
+      final merchant = matchMerchant(senderLower, bodyLower);
       if (merchant == null) continue;
 
       final monthMap = out.putIfAbsent(

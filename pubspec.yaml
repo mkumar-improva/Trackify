@@ -51,6 +51,7 @@ dependencies:
   dotenv:
   u_credit_card: ^1.4.0
   fl_chart: ^1.1.1
+  icons_plus: ^5.0.0
 
 
 dev_dependencies:
@@ -88,6 +89,22 @@ flutter:
     - assets/images/onboarding3.png
     - assets/images/piggy_bank.png
     - assets/images/3d/analytics.png
+    - assets/images/swiggy_thumb.png
+    - assets/images/amazon.png
+    - assets/images/flipkart.png
+    - assets/images/zomato.png
+    - assets/images/zepto.png
+    - assets/images/blinkit.png
+    - assets/images/ajio.png
+    - assets/images/rapido.png
+    - assets/images/ola.png
+    - assets/images/uber.png
+    - assets/images/jiomart.png
+    - assets/images/bigbasket.png
+    - assets/images/nykaa.png
+    - assets/images/myntra.png
+    - assets/images/meesho.png
+
 
 
   # An image asset can refer to one or more resolution-specific "variants", see
