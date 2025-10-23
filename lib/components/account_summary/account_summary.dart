@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:intl/intl.dart';
-import 'package:trackify/components/card/card_preview.dart';
 import 'package:trackify/components/card/payment_store.dart';
 import 'package:trackify/components/empty_state.dart';
 import 'package:trackify/services/sms_service.dart';
@@ -48,7 +47,6 @@ class _AccountSummaryState extends State<AccountSummary> {
   int _currentPage = 0;
   String? _selectedMonthKey;
   List<String> _monthKeys = [];
-  final DateFormat _monthLabelFmt = DateFormat('MMM yyyy');
 
   @override
   void initState() {
@@ -141,14 +139,6 @@ class _AccountSummaryState extends State<AccountSummary> {
 
   String _yyyyMm(DateTime dt) =>
       '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}';
-
-  String _labelFromKey(String key) {
-    final parts = key.split('-');
-    if (parts.length != 2) return key;
-    final year = int.tryParse(parts[0]) ?? 1970;
-    final month = int.tryParse(parts[1]) ?? 1;
-    return _monthLabelFmt.format(DateTime(year, month));
-  }
 
   // STEP 1: Filter by month
   List<SmsMessage> get _filteredByMonth {
@@ -345,7 +335,9 @@ class _AccountSummaryState extends State<AccountSummary> {
                     goPrevPage: _goPrevPage,
                     fmtDateTime: _fmtDateTime,
                   )
-                : const TrendsView(),
+                : TrendsView(
+                    transactions: allTransactions,
+                  ),
           ),
         ],
       ),
